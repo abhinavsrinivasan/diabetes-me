@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
+import 'features/recipes/models/recipe.dart';
+import 'recipedetail.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'features/recipes/models/recipe.dart';
-import 'services/auth_service.dart';
-import 'recipedetail.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -12,69 +10,116 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final baseUrl = kIsWeb ? 'http://127.0.0.1:5000' : 'http://10.0.2.2:5000';
-
-  List<Recipe> recipes = [];
+  List<Recipe> allRecipes = []; // full list
+  List<Recipe> filteredRecipes = []; // filtered list
   String selectedCategory = 'All';
   List<String> categories = ['All', 'Snacks', 'Breakfast', 'Lunch', 'Dinner', 'Dessert'];
-  Set<int> confirmed = {}; // For animation
   String searchQuery = '';
+
+  // Range filters
+  RangeValues carbRange = const RangeValues(0, 100);
+  RangeValues sugarRange = const RangeValues(0, 50);
+  RangeValues giRange = const RangeValues(0, 100);
 
   @override
   void initState() {
     super.initState();
-    fetchRecipes();
+    fetchRecipesFromBackend();
   }
 
-  Future<void> fetchRecipes() async {
-    final response = await http.get(Uri.parse('$baseUrl/recipes'));
+  Future<void> fetchRecipesFromBackend() async {
+    final response = await http.get(Uri.parse('http://127.0.0.1:5000/recipes'));
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       setState(() {
-        recipes = data.map((json) => Recipe.fromJson(json)).toList();
+        allRecipes = data.map((json) => Recipe.fromJson(json)).toList();
+        filteredRecipes = List.from(allRecipes);
       });
+    } else {
+      throw Exception('Failed to load recipes');
     }
   }
 
-  void markAsEaten(Recipe recipe) async {
-    final token = await AuthService().getToken();
-    final response = await http.post(
-      Uri.parse('$baseUrl/progress'),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json"
-      },
-      body: json.encode({
-        "carbs": recipe.carbs,
-        "sugar": recipe.sugar,
-        "exercise": 0,
-      }),
-    );
+  void applyFilters() {
+    setState(() {
+      filteredRecipes = allRecipes.where((recipe) {
+        final matchCarbs = recipe.carbs >= carbRange.start && recipe.carbs <= carbRange.end;
+        final matchSugar = recipe.sugar >= sugarRange.start && recipe.sugar <= sugarRange.end;
+        final matchGI = recipe.glycemicIndex >= giRange.start && recipe.glycemicIndex <= giRange.end;
+        final matchCategory = selectedCategory == 'All' || recipe.category == selectedCategory;
+        final matchSearch = recipe.title.toLowerCase().contains(searchQuery.toLowerCase());
+        return matchCarbs && matchSugar && matchGI && matchCategory && matchSearch;
+      }).toList();
+    });
+  }
 
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("You ate ${recipe.title}")),
-      );
-      setState(() => confirmed.add(recipe.id));
-      Future.delayed(Duration(seconds: 1), () {
-        if (mounted) setState(() => confirmed.remove(recipe.id));
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to log progress")),
-      );
-    }
+  void openFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text("Filter Recipes", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 20),
+                    _buildSlider("Carbs (g)", carbRange, (val) => setState(() => carbRange = val)),
+                    _buildSlider("Sugar (g)", sugarRange, (val) => setState(() => sugarRange = val)),
+                    _buildSlider("Glycemic Index", giRange, (val) => setState(() => giRange = val)),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("Cancel", style: TextStyle(color: Colors.deepPurple)),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            applyFilters();
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+                          child: const Text("Apply"),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSlider(String label, RangeValues range, Function(RangeValues) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        RangeSlider(
+          values: range,
+          min: 0,
+          max: 100,
+          divisions: 20,
+          labels: RangeLabels('${range.start.round()}', '${range.end.round()}'),
+          activeColor: Colors.deepPurple,
+          onChanged: onChanged,
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredRecipes = recipes.where((recipe) {
-      final title = recipe.title.toLowerCase();
-      final matchesSearch = title.contains(searchQuery.toLowerCase());
-      final matchesCategory = selectedCategory == 'All' || recipe.category == selectedCategory;
-      return matchesSearch && matchesCategory;
-    }).toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFFFFAF0),
       body: SafeArea(
@@ -83,22 +128,33 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
+                  const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text("Search", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                       Text("for recipes", style: TextStyle(fontSize: 20, color: Colors.black87)),
                     ],
                   ),
-                  Icon(Icons.tune, color: Colors.grey.shade600)
+                  IconButton(
+                    icon: const Icon(Icons.tune, color: Colors.deepPurple),
+                    onPressed: openFilterDialog,
+                  )
                 ],
               ),
               const SizedBox(height: 16),
+
+              // Search Bar
               TextField(
-                onChanged: (value) => setState(() => searchQuery = value),
+                onChanged: (value) {
+                  setState(() {
+                    searchQuery = value;
+                    applyFilters();
+                  });
+                },
                 decoration: InputDecoration(
                   hintText: 'Search for recipes...',
                   prefixIcon: const Icon(Icons.search, color: Colors.black54),
@@ -112,6 +168,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Category Chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -122,7 +180,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ChoiceChip(
                         label: Text(cat),
                         selected: isSelected,
-                        onSelected: (_) => setState(() => selectedCategory = cat),
+                        onSelected: (_) {
+                          setState(() {
+                            selectedCategory = cat;
+                            applyFilters();
+                          });
+                        },
                         selectedColor: Colors.deepPurple,
                         backgroundColor: Colors.white,
                         labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
@@ -133,6 +196,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Recipes Grid
               Expanded(
                 child: GridView.builder(
                   itemCount: filteredRecipes.length,
@@ -145,19 +210,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, index) {
                     final recipe = filteredRecipes[index];
                     return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => RecipeDetail(recipe: recipe)),
-                        );
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
+                      ),
+                      child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
                           ],
                         ),
@@ -180,37 +241,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    recipe.title,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                  ),
+                                  Text(recipe.title,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                                   const SizedBox(height: 6),
-                                  Text(
-                                    "Carbs: ${recipe.carbs}g\nSugar: ${recipe.sugar}g\nGI: ${recipe.glycemicIndex}",
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  confirmed.contains(recipe.id)
-                                      ? Row(
-                                          children: const [
-                                            Icon(Icons.check_circle, color: Colors.black),
-                                            SizedBox(width: 4),
-                                            Text("I Ate This", style: TextStyle(fontWeight: FontWeight.w600))
-                                          ],
-                                        )
-                                      : ElevatedButton.icon(
-                                          onPressed: () => markAsEaten(recipe),
-                                          icon: const Icon(Icons.check, size: 16),
-                                          label: const Text("I Ate This"),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.black,
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                          ),
-                                        ),
+                                  Text("Carbs: ${recipe.carbs}g\nSugar: ${recipe.sugar}g\nGI: ${recipe.glycemicIndex}",
+                                      style: const TextStyle(fontSize: 12)),
                                 ],
                               ),
                             )
