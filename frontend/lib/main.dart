@@ -1,22 +1,14 @@
 import 'package:flutter/material.dart';
 import 'homescreen.dart';
 import 'profilescreen.dart';
+import 'services/auth_service.dart';
+import 'features/auth/screens/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-void main() => runApp(DiabetesMeApp());
+void main() => runApp(const DiabetesMeApp());
 
-class DiabetesMeApp extends StatefulWidget {
-  @override
-  _DiabetesMeAppState createState() => _DiabetesMeAppState();
-}
-
-class _DiabetesMeAppState extends State<DiabetesMeApp> {
-  int _currentIndex = 0;
-
-  final List<Widget> _tabs = [
-    HomeScreen(),
-    ProfileScreen(),
-  ];
+class DiabetesMeApp extends StatelessWidget {
+  const DiabetesMeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,9 +17,9 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: Color(0xFFFFFAF0),
-        primaryColor: Color(0xFF7B4FFF),
-        appBarTheme: AppBarTheme(
+        scaffoldBackgroundColor: const Color(0xFFFFFAF0),
+        primaryColor: const Color(0xFF7B4FFF),
+        appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFF1EFFF),
           foregroundColor: Colors.black87,
           elevation: 0,
@@ -48,12 +40,7 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
             ),
           ),
         ),
-        chipTheme: ChipThemeData.fromDefaults(
-          primaryColor: Color(0xFF7B4FFF),
-          secondaryColor: Color(0xFFE9DDFF),
-          labelStyle: TextStyle(color: Colors.black),
-        ),
-        iconTheme: IconThemeData(color: Color(0xFF7B4FFF)),
+        iconTheme: const IconThemeData(color: Color(0xFF7B4FFF)),
         useMaterial3: true,
       ),
       darkTheme: ThemeData.dark().copyWith(
@@ -61,20 +48,65 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
         scaffoldBackgroundColor: Colors.black,
       ),
       themeMode: ThemeMode.light,
-      home: Scaffold(
-        body: AnimatedSwitcher(
-          duration: Duration(milliseconds: 300),
-          child: _tabs[_currentIndex],
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _currentIndex,
-          onDestinationSelected: (index) => setState(() => _currentIndex = index),
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: [
-            NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
-          ],
-        ),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const AuthWrapper(),
+        '/home': (context) => const MainAppScaffold(),
+      },
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: AuthService().getToken(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        } else if (snapshot.hasData && snapshot.data != null) {
+          return const MainAppScaffold();
+        } else {
+          return const LoginScreen();
+        }
+      },
+    );
+  }
+}
+
+class MainAppScaffold extends StatefulWidget {
+  const MainAppScaffold({super.key});
+
+  @override
+  State<MainAppScaffold> createState() => _MainAppScaffoldState();
+}
+
+class _MainAppScaffoldState extends State<MainAppScaffold> {
+  int _currentIndex = 0;
+
+  final List<Widget> _tabs = [
+    HomeScreen(),
+    ProfileScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _tabs[_currentIndex],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
+        ],
       ),
     );
   }
