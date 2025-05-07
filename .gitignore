@@ -17,6 +17,11 @@ ios/Pods/
 android/.gradle/
 android/.idea/
 *.iml
+# Ignore system/user folders
+.anaconda/
+.gradle/
+**/.anaconda/
+**/.gradle/
 
 # VSCode
 .vscode/
