@@ -58,18 +58,18 @@ flutter run
 ```
 
 ## To Do
-Move backend to persistent database (PostgreSQL or Firebase)
+- Move backend to persistent database (PostgreSQL or Firebase)
 
-Migrate static hosting and images to AWS (S3, Lambda, RDS)
+- Migrate static hosting and images to AWS (S3, Lambda, RDS)
 
-Add unit and integration tests
+- Add unit and integration tests
 
-Add analytics dashboard
+- Add analytics dashboard
 
-Add internationalization (i18n)
+- Add internationalization (i18n)
 
-Add real-time sync and push notifications
+- Add real-time sync and push notifications
 
-Include recipe recommendations based on user history
+- Include recipe recommendations based on user history
 
 
