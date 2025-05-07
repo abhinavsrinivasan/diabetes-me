@@ -1,0 +1,32 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+build/
+pubspec.lock
+
+# iOS
+ios/Flutter/Generated.xcconfig
+ios/Runner.xcworkspace/
+ios/Pods/
+
+# Android
+.gradle/
+android/.gradle/
+android/.idea/
+*.iml
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# System
+*.log
+
+# Environment files
+.env
+.env.*
