@@ -1,0 +1,23 @@
+name: diabetes_and_me
+description: A diabetes-friendly lifestyle tracking app.
+version: 1.0.0+1
+
+environment:
+  sdk: '^3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.3.0
+  image_picker: ^1.0.4
+  path_provider: ^2.1.1
+  shared_preferences: ^2.2.2
+  google_fonts: ^6.1.0 
+  fluttertoast: ^8.2.12
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
