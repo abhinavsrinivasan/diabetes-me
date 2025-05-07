@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -8,10 +9,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as path;
+import 'services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
   @override
-  _ProfileScreenState createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -24,6 +28,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   TextEditingController sugarInput = TextEditingController();
   TextEditingController exerciseInput = TextEditingController();
   String? imageUrl;
+  Uint8List? pickedImageBytes;
+  bool isEditingBio = false;
+  bool showGoals = false;
 
   final baseUrl = kIsWeb ? 'http://127.0.0.1:5000' : 'http://10.0.2.2:5000';
 
@@ -37,7 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> loadSavedImage() async {
     final prefs = await SharedPreferences.getInstance();
     final savedPath = prefs.getString('profile_image_path');
-    if (savedPath != null && File(savedPath).existsSync()) {
+    if (!kIsWeb && savedPath != null && File(savedPath).existsSync()) {
       setState(() => imageUrl = savedPath);
     }
   }
@@ -48,7 +55,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (pickedFile != null) {
       if (kIsWeb) {
-        setState(() => imageUrl = pickedFile.path);
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          pickedImageBytes = bytes;
+          imageUrl = null;
+        });
       } else {
         final appDir = await getApplicationDocumentsDirectory();
         final fileName = path.basename(pickedFile.path);
@@ -61,7 +72,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> fetchProfile() async {
-    final response = await http.get(Uri.parse('$baseUrl/profile/1'));
+    final token = await AuthService().getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/profile'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       setState(() {
@@ -75,9 +90,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> saveGoals() async {
+    final token = await AuthService().getToken();
     final res = await http.post(
-      Uri.parse('$baseUrl/goals/1'),
-      headers: {"Content-Type": "application/json"},
+      Uri.parse('$baseUrl/goals'),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token"
+      },
       body: json.encode({
         "carbs": int.parse(carbsController.text),
         "sugar": int.parse(sugarController.text),
@@ -86,14 +105,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (res.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Goals updated")),
+        const SnackBar(content: Text("Goals updated")),
       );
       fetchProfile();
     }
   }
 
   Future<void> resetProgress() async {
-    final res = await http.post(Uri.parse('$baseUrl/progress/reset/1'));
+    final token = await AuthService().getToken();
+    final res = await http.post(
+      Uri.parse('$baseUrl/progress/reset'),
+      headers: {"Authorization": "Bearer $token"},
+    );
     if (res.statusCode == 200) {
       fetchProfile();
     }
@@ -102,9 +125,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> updateManual(String type, String value) async {
     final parsed = int.tryParse(value);
     if (parsed == null) return;
+    final token = await AuthService().getToken();
     final res = await http.post(
-      Uri.parse('$baseUrl/progress/1'),
-      headers: {"Content-Type": "application/json"},
+      Uri.parse('$baseUrl/progress'),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token"
+      },
       body: json.encode({type: parsed}),
     );
     if (res.statusCode == 200) {
@@ -122,8 +149,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 6),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
             Stack(
               alignment: Alignment.center,
               children: [
@@ -140,22 +167,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text("${(percent * 100).toInt()}%"),
               ],
             ),
-            SizedBox(height: 4),
-            Text("$progress $unit", style: TextStyle(fontSize: 12)),
-            SizedBox(height: 8),
+            const SizedBox(height: 4),
+            Text("$progress $unit", style: const TextStyle(fontSize: 12)),
+            const SizedBox(height: 8),
             TextField(
               controller: input,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 hintText: unit,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
-            SizedBox(height: 6),
+            const SizedBox(height: 6),
             ElevatedButton(
               onPressed: () => updateManual(type, input.text),
-              child: Text("Add"),
+              child: const Text("Add"),
               style: ElevatedButton.styleFrom(backgroundColor: color),
             )
           ],
@@ -167,83 +194,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Profile"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: () async {
+              await AuthService().logout();
+              if (!mounted) return;
+              Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+            },
+          )
+        ],
+      ),
       body: profile.isEmpty
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text("Profile", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                  ),
-                  SizedBox(height: 20),
                   GestureDetector(
                     onTap: pickImage,
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundImage: imageUrl != null
-                          ? FileImage(File(imageUrl!))
-                          : NetworkImage(profile['profile_picture']) as ImageProvider,
+                      backgroundImage: (() {
+  if (kIsWeb) {
+    if (pickedImageBytes != null) {
+      return MemoryImage(pickedImageBytes!);
+    } else {
+      return const NetworkImage('https://via.placeholder.com/150');
+    }
+  } else {
+    if (imageUrl != null) {
+      return FileImage(File(imageUrl!));
+    } else {
+      return const AssetImage('assets/images/default_profile.png');
+    }
+  }
+})() as ImageProvider<Object>,
                     ),
                   ),
-                  SizedBox(height: 10),
-                  Text("Tap to change photo", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  SizedBox(height: 16),
-                  TextField(
-                    controller: bioController,
-                    decoration: InputDecoration(
-                      labelText: 'Bio',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
+                  const SizedBox(height: 10),
+                  const Text("Tap to change photo", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: bioController,
+                          enabled: isEditingBio,
+                          decoration: InputDecoration(
+                            labelText: 'Bio',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(isEditingBio ? Icons.check : Icons.edit),
+                        onPressed: () {
+                          setState(() => isEditingBio = !isEditingBio);
+                        },
+                      )
+                    ],
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("Daily Goals", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      IconButton(onPressed: resetProgress, icon: Icon(Icons.refresh, color: Colors.orange))
+                      const Text("Daily Goals", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      IconButton(onPressed: resetProgress, icon: const Icon(Icons.refresh, color: Colors.orange))
                     ],
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(child: buildProgressCard("Carbs", profile['progress']['carbs'], profile['goals']['carbs'], Colors.orange, carbsInput, 'carbs')),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(child: buildProgressCard("Sugar", profile['progress']['sugar'], profile['goals']['sugar'], Colors.purple, sugarInput, 'sugar')),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(child: buildProgressCard("Exercise", profile['progress']['exercise'], profile['goals']['exercise'], Colors.green, exerciseInput, 'exercise')),
                     ],
                   ),
-                  SizedBox(height: 20),
-                  Text("Update Goals", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 12),
-                  TextField(
-                    controller: carbsController,
-                    decoration: InputDecoration(labelText: 'Daily Carb Goal', border: OutlineInputBorder()),
-                    keyboardType: TextInputType.number,
-                  ),
-                  SizedBox(height: 10),
-                  TextField(
-                    controller: sugarController,
-                    decoration: InputDecoration(labelText: 'Daily Sugar Goal', border: OutlineInputBorder()),
-                    keyboardType: TextInputType.number,
-                  ),
-                  SizedBox(height: 10),
-                  TextField(
-                    controller: exerciseController,
-                    decoration: InputDecoration(labelText: 'Daily Exercise Goal (mins)', border: OutlineInputBorder()),
-                    keyboardType: TextInputType.number,
-                  ),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: saveGoals,
-                    child: Text("Save Goals"),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-                      backgroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
+                  const SizedBox(height: 20),
+                  ExpansionTile(
+                    initiallyExpanded: false,
+                    onExpansionChanged: (expanded) => setState(() => showGoals = expanded),
+                    title: const Text("Update Goals", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    children: [
+                      TextField(
+                        controller: carbsController,
+                        decoration: const InputDecoration(labelText: 'Daily Carb Goal', border: OutlineInputBorder()),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: sugarController,
+                        decoration: const InputDecoration(labelText: 'Daily Sugar Goal', border: OutlineInputBorder()),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: exerciseController,
+                        decoration: const InputDecoration(labelText: 'Daily Exercise Goal (mins)', border: OutlineInputBorder()),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: saveGoals,
+                        child: const Text("Save Goals"),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                          backgroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      )
+                    ],
                   )
                 ],
               ),

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'features/recipes/models/recipe.dart';
+import 'services/auth_service.dart';
+import 'recipedetail.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -11,7 +14,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final baseUrl = kIsWeb ? 'http://127.0.0.1:5000' : 'http://10.0.2.2:5000';
 
-  List<dynamic> recipes = [];
+  List<Recipe> recipes = [];
   String selectedCategory = 'All';
   List<String> categories = ['All', 'Snacks', 'Breakfast', 'Lunch', 'Dinner', 'Dessert'];
   Set<int> confirmed = {}; // For animation
@@ -26,42 +29,54 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> fetchRecipes() async {
     final response = await http.get(Uri.parse('$baseUrl/recipes'));
     if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
       setState(() {
-        recipes = json.decode(response.body);
+        recipes = data.map((json) => Recipe.fromJson(json)).toList();
       });
     }
   }
 
-  void markAsEaten(Map recipe) async {
-    await http.post(
-      Uri.parse('$baseUrl/progress/1'),
-      headers: {"Content-Type": "application/json"},
+  void markAsEaten(Recipe recipe) async {
+    final token = await AuthService().getToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl/progress'),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json"
+      },
       body: json.encode({
-        "carbs": recipe["carbs"],
-        "sugar": recipe["sugar"],
+        "carbs": recipe.carbs,
+        "sugar": recipe.sugar,
         "exercise": 0,
       }),
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("You ate ${recipe['title']}")),
-    );
-    setState(() => confirmed.add(recipe["id"]));
-    Future.delayed(Duration(seconds: 1), () {
-      if (mounted) setState(() => confirmed.remove(recipe["id"]));
-    });
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("You ate ${recipe.title}")),
+      );
+      setState(() => confirmed.add(recipe.id));
+      Future.delayed(Duration(seconds: 1), () {
+        if (mounted) setState(() => confirmed.remove(recipe.id));
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to log progress")),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final filteredRecipes = recipes.where((recipe) {
-      final title = recipe['title'].toString().toLowerCase();
+      final title = recipe.title.toLowerCase();
       final matchesSearch = title.contains(searchQuery.toLowerCase());
-      final matchesCategory = selectedCategory == 'All' || recipe['category'] == selectedCategory;
+      final matchesCategory = selectedCategory == 'All' || recipe.category == selectedCategory;
       return matchesSearch && matchesCategory;
     }).toList();
 
     return Scaffold(
-      backgroundColor: Color(0xFFFFFAF0),
+      backgroundColor: const Color(0xFFFFFAF0),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -73,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: const [
                       Text("Search", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                       Text("for recipes", style: TextStyle(fontSize: 20, color: Colors.black87)),
                     ],
@@ -81,22 +96,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icon(Icons.tune, color: Colors.grey.shade600)
                 ],
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextField(
                 onChanged: (value) => setState(() => searchQuery = value),
                 decoration: InputDecoration(
                   hintText: 'Search for recipes...',
-                  prefixIcon: Icon(Icons.search, color: Colors.black54),
+                  prefixIcon: const Icon(Icons.search, color: Colors.black54),
                   filled: true,
                   fillColor: Colors.grey.shade200,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: BorderSide.none,
                   ),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -117,11 +132,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   }).toList(),
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Expanded(
                 child: GridView.builder(
                   itemCount: filteredRecipes.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     childAspectRatio: 0.72,
                     crossAxisSpacing: 16,
@@ -130,14 +145,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, index) {
                     final recipe = filteredRecipes[index];
                     return GestureDetector(
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => RecipeDetail(recipe: recipe)),
+                        );
+                      },
                       child: AnimatedContainer(
-                        duration: Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
+                          boxShadow: const [
                             BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
                           ],
                         ),
@@ -145,9 +165,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             ClipRRect(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                               child: Image.network(
-                                recipe["image"],
+                                recipe.image,
                                 height: 120,
                                 width: double.infinity,
                                 fit: BoxFit.cover,
@@ -161,15 +181,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    recipe["title"],
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    recipe.title,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                   ),
-                                  SizedBox(height: 6),
-                                  Text("Carbs: ${recipe["carbs"]}g\nSugar: ${recipe["sugar"]}g", style: TextStyle(fontSize: 12)),
-                                  SizedBox(height: 10),
-                                  confirmed.contains(recipe["id"])
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    "Carbs: ${recipe.carbs}g\nSugar: ${recipe.sugar}g\nGI: ${recipe.glycemicIndex}",
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  confirmed.contains(recipe.id)
                                       ? Row(
-                                          children: [
+                                          children: const [
                                             Icon(Icons.check_circle, color: Colors.black),
                                             SizedBox(width: 4),
                                             Text("I Ate This", style: TextStyle(fontWeight: FontWeight.w600))
@@ -177,12 +200,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                         )
                                       : ElevatedButton.icon(
                                           onPressed: () => markAsEaten(recipe),
-                                          icon: Icon(Icons.check, size: 16),
-                                          label: Text("I Ate This"),
+                                          icon: const Icon(Icons.check, size: 16),
+                                          label: const Text("I Ate This"),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.black,
                                             foregroundColor: Colors.white,
-                                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                             shape: RoundedRectangleBorder(
                                               borderRadius: BorderRadius.circular(8),
                                             ),
