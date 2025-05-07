@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                                   const SizedBox(height: 6),
                                   Text("Carbs: ${recipe.carbs}g\nSugar: ${recipe.sugar}g\nGI: ${recipe.glycemicIndex}",
-                                      style: const TextStyle(fontSize: 12)),
+                                      style: const TextStyle(fontSize: 11)),
                                 ],
                               ),
                             )
