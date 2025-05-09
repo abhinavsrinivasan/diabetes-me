@@ -28,17 +28,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> fetchRecipesFromBackend() async {
-    final response = await http.get(Uri.parse('http://127.0.0.1:5000/recipes'));
+  try {
+    final response = await http.get(Uri.parse('https://l1t7ko8f77.execute-api.us-east-1.amazonaws.com/recipes'));
+
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       setState(() {
-        allRecipes = data.map((json) => Recipe.fromJson(json)).toList();
+        allRecipes = data.map((item) => Recipe.fromJson(item)).toList();
         filteredRecipes = List.from(allRecipes);
       });
     } else {
+      debugPrint('Backend error: ${response.statusCode}');
       throw Exception('Failed to load recipes');
     }
+  } catch (e) {
+    debugPrint('Error fetching recipes: $e');
   }
+}
+
 
   void applyFilters() {
     setState(() {
