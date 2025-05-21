@@ -178,7 +178,7 @@ def update_goals():
     if user:
         user["profile"]["goals"] = data
         return jsonify({"message": "Goals updated"})
-    return jsonify({"error": "User not found"})
+    return jsonify({"error": "User not found"}), 404
 
 @app.route("/progress", methods=["POST"])
 @jwt_required()
