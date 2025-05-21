@@ -8,7 +8,7 @@
 
 ### Flutter Frontend
 - **Home Screen**
-  - Recipe discovery with search, category filters, and "I Ate This" tracking buttons
+  - Recipe discovery with search, category filters, and tracking buttons
   - Advanced filtering by Carbs, Sugar, and Glycemic Index
   - Real-time nutrition tracking with animated progress visualization
 - **Recipe Detail Screen**
