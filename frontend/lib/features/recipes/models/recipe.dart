@@ -26,19 +26,20 @@ class Recipe {
   });
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
-    return Recipe(
-      id: json['id'],
-      title: json['title'],
-      image: json['image'],
-      carbs: json['carbs'],
-      sugar: json['sugar'],
-      calories: json['calories'],
-      category: json['category'],
-      glycemicIndex: json['glycemic_index'],
-      ingredients: List<String>.from(json['ingredients'] ?? []),
-      instructions: List<String>.from(json['instructions'] ?? []),
-    );
-  }
+  return Recipe(
+    id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+    title: json['title'],
+    image: json['image'],
+    carbs: json['carbs'] is int ? json['carbs'] : int.tryParse(json['carbs'].toString()) ?? 0,
+    sugar: json['sugar'] is int ? json['sugar'] : int.tryParse(json['sugar'].toString()) ?? 0,
+    calories: json['calories'] is int ? json['calories'] : int.tryParse(json['calories'].toString()) ?? 0,
+    category: json['category'],
+    glycemicIndex: json['glycemic_index'] is int ? json['glycemic_index'] : int.tryParse(json['glycemic_index'].toString()) ?? 0,
+    ingredients: List<String>.from(json['ingredients'] ?? []),
+    instructions: List<String>.from(json['instructions'] ?? []),
+  );
+}
+
 
   Map<String, dynamic> toJson() {
     return {
