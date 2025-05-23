@@ -89,7 +89,7 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
 
   final List<Widget> _tabs = [
     HomeScreen(),
-    ProfileScreen(),
+    const ProfileScreen(),  // Added const here
   ];
 
   @override

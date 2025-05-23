@@ -7,7 +7,10 @@ from flask_jwt_extended import (
 import datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["http://localhost:*", "http://127.0.0.1:*"], 
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"])
+
 
 # === Security Config ===
 app.config['JWT_SECRET_KEY'] = 'super-secret-key'  # Use environment variable in production
@@ -23,7 +26,7 @@ recipes = [
     {
         "id": 1,
         "title": "Zucchini Noodles with Pesto",
-        "image": "https://picsum.photos/seed/zucchini/300",
+        "image": "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop&crop=center",
         "carbs": 20,
         "sugar": 5,
         "calories": 180,
@@ -40,7 +43,7 @@ recipes = [
     {
         "id": 2,
         "title": "Grilled Chicken Salad",
-        "image": "https://picsum.photos/seed/salad/300",
+        "image": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=200&fit=crop&crop=center",
         "carbs": 10,
         "sugar": 2,
         "calories": 220,
@@ -57,7 +60,7 @@ recipes = [
     {
         "id": 3,
         "title": "Berry Yogurt Parfait",
-        "image": "https://picsum.photos/seed/parfait/300",
+        "image": "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300&h=200&fit=crop&crop=center",
         "carbs": 15,
         "sugar": 8,
         "calories": 150,
@@ -74,7 +77,7 @@ recipes = [
     {
         "id": 4,
         "title": "Roasted Chickpea Snack",
-        "image": "https://picsum.photos/seed/chickpea/300",
+        "image": "https://images.unsplash.com/photo-1601672159811-4c9db1ba8e8b?w=300&h=200&fit=crop&crop=center",
         "carbs": 12,
         "sugar": 1,
         "calories": 130,
@@ -91,7 +94,7 @@ recipes = [
     {
         "id": 5,
         "title": "Greek Yogurt with Nuts",
-        "image": "https://picsum.photos/seed/yogurt/300",
+        "image": "https://images.unsplash.com/photo-1571212515416-27f2de55a5da?w=300&h=200&fit=crop&crop=center",
         "carbs": 10,
         "sugar": 4,
         "calories": 160,
@@ -103,6 +106,57 @@ recipes = [
             "Top with chopped almonds and walnuts.",
             "Drizzle lightly with honey.",
             "Serve immediately."
+        ]
+    },
+    {
+        "id": 6,
+        "title": "Cauliflower Rice Bowl",
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop&crop=center",
+        "carbs": 8,
+        "sugar": 3,
+        "calories": 140,
+        "category": "Lunch",
+        "glycemic_index": 32,
+        "ingredients": ["Cauliflower", "Bell peppers", "Onions", "Garlic", "Olive oil"],
+        "instructions": [
+            "Pulse cauliflower in food processor until rice-like.",
+            "Sauté onions and garlic in olive oil.",
+            "Add cauliflower rice and bell peppers.",
+            "Cook for 5-7 minutes until tender."
+        ]
+    },
+    {
+        "id": 7,
+        "title": "Avocado Toast",
+        "image": "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=300&h=200&fit=crop&crop=center",
+        "carbs": 25,
+        "sugar": 2,
+        "calories": 250,
+        "category": "Breakfast",
+        "glycemic_index": 43,
+        "ingredients": ["Whole grain bread", "Avocado", "Lime", "Salt", "Pepper"],
+        "instructions": [
+            "Toast the bread until golden.",
+            "Mash avocado with lime juice.",
+            "Spread on toast.",
+            "Season with salt and pepper."
+        ]
+    },
+    {
+        "id": 8,
+        "title": "Baked Salmon with Vegetables",
+        "image": "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=300&h=200&fit=crop&crop=center",
+        "carbs": 12,
+        "sugar": 6,
+        "calories": 320,
+        "category": "Dinner",
+        "glycemic_index": 38,
+        "ingredients": ["Salmon fillet", "Broccoli", "Carrots", "Olive oil", "Lemon"],
+        "instructions": [
+            "Preheat oven to 400°F.",
+            "Place salmon and vegetables on baking sheet.",
+            "Drizzle with olive oil and lemon.",
+            "Bake for 20-25 minutes."
         ]
     }
 ]
