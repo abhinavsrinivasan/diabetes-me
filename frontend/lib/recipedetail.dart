@@ -26,8 +26,23 @@ class RecipeDetailScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 220,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    Container(height: 220, color: Colors.grey[300]),
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 220,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 220,
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                    ),
+                  );
+                },
               ),
             ),
             Padding(
