@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'features/recipes/models/recipe.dart';
 import 'recipedetail.dart';
 import 'package:http/http.dart' as http;
@@ -21,6 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   RangeValues sugarRange = const RangeValues(0, 50);
   RangeValues giRange = const RangeValues(0, 100);
 
+  // Backend URL
+  final String baseUrl = kIsWeb ? 'http://127.0.0.1:5000' : 'http://10.0.2.2:5000';
+
   @override
   void initState() {
     super.initState();
@@ -28,24 +32,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> fetchRecipesFromBackend() async {
-  try {
-    final response = await http.get(Uri.parse('https://l1t7ko8f77.execute-api.us-east-1.amazonaws.com/recipes'));
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/recipes'));
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      setState(() {
-        allRecipes = data.map((item) => Recipe.fromJson(item)).toList();
-        filteredRecipes = List.from(allRecipes);
-      });
-    } else {
-      debugPrint('Backend error: ${response.statusCode}');
-      throw Exception('Failed to load recipes');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          allRecipes = data.map((item) => Recipe.fromJson(item)).toList();
+          filteredRecipes = List.from(allRecipes);
+        });
+      } else {
+        debugPrint('Backend error: ${response.statusCode}');
+        throw Exception('Failed to load recipes');
+      }
+    } catch (e) {
+      debugPrint('Error fetching recipes: $e');
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load recipes. Make sure your Flask server is running.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-  } catch (e) {
-    debugPrint('Error fetching recipes: $e');
   }
-}
-
 
   void applyFilters() {
     setState(() {
@@ -146,9 +158,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text("for recipes", style: TextStyle(fontSize: 20, color: Colors.black87)),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.tune, color: Colors.deepPurple),
-                    onPressed: openFilterDialog,
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.deepPurple),
+                        onPressed: fetchRecipesFromBackend,
+                        tooltip: 'Refresh Recipes',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.tune, color: Colors.deepPurple),
+                        onPressed: openFilterDialog,
+                        tooltip: 'Filter Recipes',
+                      ),
+                    ],
                   )
                 ],
               ),
@@ -204,64 +226,105 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Recipes Grid
+              // Recipes Grid or Loading/Error State
               Expanded(
-                child: GridView.builder(
-                  itemCount: filteredRecipes.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.72,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemBuilder: (context, index) {
-                    final recipe = filteredRecipes[index];
-                    return GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-                          ],
-                        ),
+                child: allRecipes.isEmpty
+                    ? const Center(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                              child: Image.network(
-                                recipe.image,
-                                height: 120,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Container(height: 120, color: Colors.grey[300]),
-                              ),
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Loading recipes...'),
+                            SizedBox(height: 8),
+                            Text(
+                              'Make sure your Flask server is running on localhost:5000',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              textAlign: TextAlign.center,
                             ),
-                            Padding(
-                              padding: const EdgeInsets.all(10.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(recipe.title,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                                  const SizedBox(height: 6),
-                                  Text("Carbs: ${recipe.carbs}g\nSugar: ${recipe.sugar}g\nGI: ${recipe.glycemicIndex}",
-                                      style: const TextStyle(fontSize: 12)),
-                                ],
-                              ),
-                            )
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      )
+                    : filteredRecipes.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No recipes match your filters.\nTry adjusting your search criteria.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
+                          )
+                        : GridView.builder(
+                            itemCount: filteredRecipes.length,
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.72,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            itemBuilder: (context, index) {
+                              final recipe = filteredRecipes[index];
+                              return GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                                        child: Image.network(
+                                          recipe.image,
+                                          height: 120,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder: (context, child, loadingProgress) {
+                                            if (loadingProgress == null) return child;
+                                            return Container(
+                                              height: 120,
+                                              color: Colors.grey[200],
+                                              child: const Center(child: CircularProgressIndicator()),
+                                            );
+                                          },
+                                          errorBuilder: (context, error, stackTrace) {
+                                            debugPrint('Image load error: $error');
+                                            return Container(
+                                              height: 120,
+                                              color: Colors.grey[300],
+                                              child: const Center(
+                                                child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(10.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(recipe.title,
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                            const SizedBox(height: 6),
+                                            Text("Carbs: ${recipe.carbs}g\nSugar: ${recipe.sugar}g\nGI: ${recipe.glycemicIndex}",
+                                                style: const TextStyle(fontSize: 12)),
+                                          ],
+                                        ),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
               ),
             ],
           ),
