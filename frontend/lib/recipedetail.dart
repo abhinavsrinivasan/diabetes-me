@@ -1,26 +1,33 @@
 import 'package:flutter/material.dart';
 import 'features/recipes/models/recipe.dart';
 
-class RecipeDetailScreen extends StatelessWidget {
+class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
 
   const RecipeDetailScreen({Key? key, required this.recipe}) : super(key: key);
+
+  @override
+  State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
+}
+
+class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
+  bool isFavorite = false;
 
   // Mock ingredient data with icons
   List<Map<String, dynamic>> get ingredientsList => [
     {
       'icon': '🥖',
-      'name': recipe.ingredients.isNotEmpty ? recipe.ingredients[0] : 'Bread',
+      'name': widget.recipe.ingredients.isNotEmpty ? widget.recipe.ingredients[0] : 'Bread',
       'amount': '2 slices'
     },
     {
       'icon': '🫒',
-      'name': recipe.ingredients.length > 1 ? recipe.ingredients[1] : 'Olive oil',
+      'name': widget.recipe.ingredients.length > 1 ? widget.recipe.ingredients[1] : 'Olive oil',
       'amount': '1 tbsp'
     },
     {
       'icon': '🧄',
-      'name': recipe.ingredients.length > 2 ? recipe.ingredients[2] : 'Garlic',
+      'name': widget.recipe.ingredients.length > 2 ? widget.recipe.ingredients[2] : 'Garlic',
       'amount': '1 clove'
     },
     {
@@ -28,7 +35,7 @@ class RecipeDetailScreen extends StatelessWidget {
       'name': 'Salt and pepper',
       'amount': 'To taste'
     },
-    ...recipe.ingredients.skip(3).map((ingredient) => {
+    ...widget.recipe.ingredients.skip(3).map((ingredient) => {
       'icon': _getIngredientIcon(ingredient),
       'name': ingredient,
       'amount': '1 portion'
@@ -82,12 +89,19 @@ class RecipeDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.favorite_border, color: Colors.black),
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? Colors.red : Colors.black,
+                  ),
                   onPressed: () {
+                    setState(() {
+                      isFavorite = !isFavorite;
+                    });
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Added to favorites!'),
-                        backgroundColor: Color(0xFF4CAF50),
+                      SnackBar(
+                        content: Text(isFavorite ? 'Added to favorites!' : 'Removed from favorites'),
+                        backgroundColor: isFavorite ? const Color(0xFF4CAF50) : Colors.grey[600],
+                        duration: const Duration(seconds: 1),
                       ),
                     );
                   },
@@ -101,7 +115,7 @@ class RecipeDetailScreen extends StatelessWidget {
                   bottomRight: Radius.circular(24),
                 ),
                 child: Image.network(
-                  recipe.image,
+                  widget.recipe.image,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
                     color: Colors.grey[300],
@@ -138,7 +152,7 @@ class RecipeDetailScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                recipe.title,
+                                widget.recipe.title,
                                 style: const TextStyle(
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
@@ -187,9 +201,9 @@ class RecipeDetailScreen extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildStatItem('Calories', '${recipe.calories} cal'),
+                          _buildStatItem('Calories', '${widget.recipe.calories} cal'),
                           Container(width: 1, height: 40, color: Colors.grey[300]),
-                          _buildStatItem('Ingredients', '${recipe.ingredients.length.toString().padLeft(2, '0')}'),
+                          _buildStatItem('Ingredients', '${widget.recipe.ingredients.length.toString().padLeft(2, '0')}'),
                           Container(width: 1, height: 40, color: Colors.grey[300]),
                           _buildStatItem('Total Time', '25 min'),
                         ],
@@ -209,7 +223,7 @@ class RecipeDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'This delicious ${recipe.title.toLowerCase()} is a perfect choice for those managing diabetes. With ${recipe.carbs}g carbs, ${recipe.sugar}g sugar, and a glycemic index of ${recipe.glycemicIndex}, it\'s designed to help maintain stable blood sugar levels while delivering amazing taste.',
+                      'This delicious ${widget.recipe.title.toLowerCase()} is a perfect choice for those managing diabetes. With ${widget.recipe.carbs}g carbs, ${widget.recipe.sugar}g sugar, and a glycemic index of ${widget.recipe.glycemicIndex}, it\'s designed to help maintain stable blood sugar levels while delivering amazing taste.',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.grey[700],
@@ -241,9 +255,9 @@ class RecipeDetailScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _buildNutritionInfo('Carbs', '${recipe.carbs}g', const Color(0xFFFF6B35)),
-                              _buildNutritionInfo('Sugar', '${recipe.sugar}g', const Color(0xFF9C27B0)),
-                              _buildNutritionInfo('GI', '${recipe.glycemicIndex}', const Color(0xFF2196F3)),
+                              _buildNutritionInfo('Carbs', '${widget.recipe.carbs}g', const Color(0xFFFF6B35)),
+                              _buildNutritionInfo('Sugar', '${widget.recipe.sugar}g', const Color(0xFF9C27B0)),
+                              _buildNutritionInfo('GI', '${widget.recipe.glycemicIndex}', const Color(0xFF2196F3)),
                             ],
                           ),
                         ],
@@ -345,7 +359,7 @@ class RecipeDetailScreen extends StatelessWidget {
                     const SizedBox(height: 16),
 
                     // Steps List
-                    ...recipe.instructions.asMap().entries.map((entry) {
+                    ...widget.recipe.instructions.asMap().entries.map((entry) {
                       int index = entry.key;
                       String step = entry.value;
                       return Container(

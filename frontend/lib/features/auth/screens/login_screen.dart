@@ -65,6 +65,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final name = _nameController.text.trim();
 
     if (_isLogin) {
       bool success = await _authService.login(email, password);
@@ -76,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         _showErrorSnackBar("Invalid credentials. Please try again.");
       }
     } else {
-      bool success = await _authService.signup(email, password);
+      bool success = await _authService.signup(email, password, name: name);
       setState(() => _loading = false);
 
       if (success) {
