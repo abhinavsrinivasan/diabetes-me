@@ -1,4 +1,9 @@
-import 'dart:convert';
+Widget _buildFavoritesTab() {  Future<void> loadFavoriteRecipes() async {
+    final favorites = await RecipeUtils.getFavoriteRecipes();
+    setState(() {
+      favoriteRecipes = favorites;
+    });
+  }import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -8,10 +13,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as path;
+import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 import 'services/auth_service.dart';
 import 'features/recipes/models/recipe.dart';
 import 'recipedetail.dart';
 import 'recipe_utils.dart';
+import 'blood_sugar_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,6 +30,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
   Map<String, dynamic> profile = {};
   List<Recipe> favoriteRecipes = [];
+  List<BloodSugarEntry> bloodSugarEntries = [];
   TextEditingController bioController = TextEditingController();
   TextEditingController carbsController = TextEditingController();
   TextEditingController sugarController = TextEditingController();
@@ -29,12 +38,16 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   TextEditingController carbsInput = TextEditingController();
   TextEditingController sugarInput = TextEditingController();
   TextEditingController exerciseInput = TextEditingController();
+  TextEditingController bloodSugarController = TextEditingController();
+  TextEditingController noteController = TextEditingController();
 
   String? imageUrl;
   String? userEmail;
   Uint8List? pickedImageBytes;
   bool isEditingBio = false;
   bool showGoals = false;
+  String selectedContext = 'Fasting';
+  DateTime selectedDateTime = DateTime.now();
 
   late AnimationController _animationController;
   late Animation<double> _progressAnimation;
@@ -53,10 +66,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       parent: _animationController,
       curve: Curves.easeInOut,
     );
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     fetchProfile();
     loadSavedImage();
     loadFavoriteRecipes();
+    loadBloodSugarEntries();
   }
 
   @override
@@ -114,11 +128,112 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     }
   }
 
-  Future<void> loadFavoriteRecipes() async {
-    final favorites = await RecipeUtils.getFavoriteRecipes();
-    setState(() {
-      favoriteRecipes = favorites;
+  Future<void> loadBloodSugarEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (userEmail == null) {
+      final token = await AuthService().getToken();
+      if (token != null) {
+        final parts = token.split('.');
+        if (parts.length == 3) {
+          final payload = json.decode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
+          userEmail = payload['sub'] ?? payload['email'];
+        }
+      }
+    }
+    
+    if (userEmail != null) {
+      final entriesJson = prefs.getString('blood_sugar_$userEmail');
+      if (entriesJson != null) {
+        final List<dynamic> entriesList = json.decode(entriesJson);
+        setState(() {
+          bloodSugarEntries = entriesList.map((item) => BloodSugarEntry.fromJson(item)).toList();
+          bloodSugarEntries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        });
+      }
+    }
+  }
+
+  Future<void> saveBloodSugarEntry() async {
+    final value = int.tryParse(bloodSugarController.text);
+    if (value == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Please enter a valid blood sugar value"),
+          backgroundColor: Colors.red[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
+    final entry = BloodSugarEntry(
+      id: const Uuid().v4(),
+      value: value,
+      timestamp: selectedDateTime,
+      context: selectedContext,
+      note: noteController.text.isNotEmpty ? noteController.text : null,
+    );
+
+    bloodSugarEntries.insert(0, entry);
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'blood_sugar_$userEmail',
+      json.encode(bloodSugarEntries.map((e) => e.toJson()).toList()),
+    );
+
+    bloodSugarController.clear();
+    noteController.clear();
+    selectedDateTime = DateTime.now();
+    setState(() {});
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Blood sugar reading saved: $value mg/dL"),
+        backgroundColor: Colors.green[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Map<String, List<BloodSugarEntry>> getGroupedEntries() {
+    final grouped = <String, List<BloodSugarEntry>>{};
+    for (var entry in bloodSugarEntries) {
+      final dateKey = DateFormat('MMM d, yyyy').format(entry.timestamp);
+      grouped.putIfAbsent(dateKey, () => []).add(entry);
+    }
+    return grouped;
+  }
+
+  Map<String, double> getAveragesByContext() {
+    final contextGroups = <String, List<int>>{};
+    for (var entry in bloodSugarEntries) {
+      contextGroups.putIfAbsent(entry.context, () => []).add(entry.value);
+    }
+    
+    final averages = <String, double>{};
+    contextGroups.forEach((context, values) {
+      if (values.isNotEmpty) {
+        averages[context] = values.reduce((a, b) => a + b) / values.length;
+      }
     });
+    return averages;
+  }
+
+  int getHighReadingsCount() {
+    final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+    return bloodSugarEntries
+        .where((e) => e.timestamp.isAfter(weekAgo) && e.value > 180)
+        .length;
+  }
+
+  int getLowReadingsCount() {
+    final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+    return bloodSugarEntries
+        .where((e) => e.timestamp.isAfter(weekAgo) && e.value < 70)
+        .length;
   }
 
   Future<void> fetchProfile() async {
@@ -517,7 +632,560 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildFavoritesTab() {
+  Widget _buildBloodSugarTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Add Entry Card
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.add_circle, color: Colors.red[600], size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "Add Blood Sugar Reading",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Blood Sugar Input
+                TextField(
+                  controller: bloodSugarController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    labelText: "Blood Sugar Value",
+                    suffixText: "mg/dL",
+                    prefixIcon: Icon(Icons.water_drop, color: Colors.red[400]),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.red[400]!, width: 2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Date & Time Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.calendar_today),
+                        label: Text(DateFormat('MMM d, yyyy').format(selectedDateTime)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDateTime,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                          );
+                          if (date != null) {
+                            setState(() {
+                              selectedDateTime = DateTime(
+                                date.year,
+                                date.month,
+                                date.day,
+                                selectedDateTime.hour,
+                                selectedDateTime.minute,
+                              );
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.access_time),
+                        label: Text(DateFormat('h:mm a').format(selectedDateTime)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+                          );
+                          if (time != null) {
+                            setState(() {
+                              selectedDateTime = DateTime(
+                                selectedDateTime.year,
+                                selectedDateTime.month,
+                                selectedDateTime.day,
+                                time.hour,
+                                time.minute,
+                              );
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Context Tags
+                const Text("Context", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: ['Fasting', 'Before meal', 'After meal', 'Random'].map((context) {
+                    final isSelected = selectedContext == context;
+                    return ChoiceChip(
+                      label: Text(context),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() => selectedContext = context);
+                        }
+                      },
+                      selectedColor: Colors.red[400],
+                      backgroundColor: Colors.grey[100],
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                
+                // Note Field
+                TextField(
+                  controller: noteController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: "Note (optional)",
+                    hintText: "e.g., Had oatmeal and berries",
+                    prefixIcon: const Icon(Icons.note_add),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.red[400]!, width: 2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Save Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: saveBloodSugarEntry,
+                    icon: const Icon(Icons.save),
+                    label: const Text("Save Entry", style: TextStyle(fontSize: 16)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[600],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Statistics Summary
+          if (bloodSugarEntries.isNotEmpty) ...[
+            const Text(
+              "Statistics",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    "High Readings",
+                    "${getHighReadingsCount()}",
+                    "This week",
+                    Colors.red,
+                    Icons.arrow_upward,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    "Low Readings",
+                    "${getLowReadingsCount()}",
+                    "This week",
+                    Colors.orange,
+                    Icons.arrow_downward,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Averages by Context
+            ...getAveragesByContext().entries.map((entry) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            entry.key == 'Fasting' ? Icons.nights_stay :
+                            entry.key == 'Before meal' ? Icons.restaurant :
+                            entry.key == 'After meal' ? Icons.fastfood :
+                            Icons.access_time,
+                            color: Colors.blue[700],
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          "Avg ${entry.key}",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      "${entry.value.toStringAsFixed(0)} mg/dL",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: _getColorForValue(entry.value.toInt()),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            
+            const SizedBox(height: 24),
+            const Text(
+              "Recent Readings",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
+          // Readings List
+          if (bloodSugarEntries.isEmpty)
+            Center(
+              child: Column(
+                children: [
+                  const SizedBox(height: 40),
+                  Icon(Icons.water_drop_outlined, size: 80, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    "No blood sugar readings yet",
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Add your first reading above",
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...getGroupedEntries().entries.map((dayGroup) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      dayGroup.key,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                  ...dayGroup.value.map((entry) => _buildReadingCard(entry)),
+                ],
+              );
+            }).toList(),
+          
+          const SizedBox(height: 80),
+          
+          // Disclaimer
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.amber[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber[200]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.amber[800]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "This app is for informational purposes only. Always consult your doctor for medical decisions.",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.amber[900],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, String subtitle, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: color.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReadingCard(BloodSugarEntry entry) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: entry.getColor().withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  entry.value.toString(),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: entry.getColor(),
+                  ),
+                ),
+                Text(
+                  "mg/dL",
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: entry.getColor(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      entry.context == 'Fasting' ? Icons.nights_stay :
+                      entry.context == 'Before meal' ? Icons.restaurant :
+                      entry.context == 'After meal' ? Icons.fastfood :
+                      Icons.access_time,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      entry.context,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: entry.getColor().withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        entry.getStatus(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: entry.getColor(),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('h:mm a').format(entry.timestamp),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                if (entry.note != null && entry.note!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    entry.note!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getColorForValue(int value) {
+    if (value < 70 || value > 180) {
+      return Colors.red;
+    } else if (value >= 140 && value <= 180) {
+      return Colors.orange;
+    } else {
+      return Colors.green;
+    }
+  }
     if (favoriteRecipes.isEmpty) {
       return Center(
         child: Column(
@@ -802,6 +1470,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       tabs: const [
                         Tab(text: "Daily Goals", icon: Icon(Icons.track_changes)),
                         Tab(text: "Favorites", icon: Icon(Icons.favorite)),
+                        Tab(text: "Blood Sugar", icon: Icon(Icons.water_drop)),
                       ],
                     ),
                   ),
@@ -812,6 +1481,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 children: [
                   _buildDailyGoalsTab(),
                   _buildFavoritesTab(),
+                  _buildBloodSugarTab(),
                 ],
               ),
             ),

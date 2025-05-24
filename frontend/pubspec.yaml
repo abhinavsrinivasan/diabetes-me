@@ -16,6 +16,7 @@ dependencies:
   fluttertoast: ^8.2.12
   flutter_secure_storage: ^6.0.0
   uuid: ^3.0.6
+  intl: ^0.18.1
 
 dev_dependencies:
   flutter_test:
