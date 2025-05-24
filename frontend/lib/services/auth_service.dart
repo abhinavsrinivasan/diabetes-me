@@ -8,12 +8,16 @@ class AuthService {
   static final String _baseUrl = kIsWeb ? 'http://127.0.0.1:5000' : 'http://10.0.2.2:5000';
   final _storage = const FlutterSecureStorage();
 
-  Future<bool> signup(String email, String password) async {
+  Future<bool> signup(String email, String password, {String? name}) async {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/signup'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+        body: jsonEncode({
+          'email': email, 
+          'password': password,
+          'name': name ?? 'User',
+        }),
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -66,6 +70,27 @@ class AuthService {
     } catch (e) {
       print('Get profile error: $e');
       return null;
+    }
+  }
+
+  Future<bool> updateProfile(Map<String, dynamic> updates) async {
+    try {
+      final token = await getToken();
+      if (token == null) return false;
+
+      final response = await http.put(
+        Uri.parse('$_baseUrl/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(updates),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Update profile error: $e');
+      return false;
     }
   }
 

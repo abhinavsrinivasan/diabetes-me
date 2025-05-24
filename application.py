@@ -26,7 +26,7 @@ recipes = [
     {
         "id": 1,
         "title": "Zucchini Noodles with Pesto",
-        "image": "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop&crop=center",
+        "image": "https://images.unsplash.com/photo-1609501676725-7186f017a4b7?w=400&h=400&fit=crop",
         "carbs": 20,
         "sugar": 5,
         "calories": 180,
@@ -43,7 +43,7 @@ recipes = [
     {
         "id": 2,
         "title": "Grilled Chicken Salad",
-        "image": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=300&h=200&fit=crop&crop=center",
+        "image": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=400&fit=crop",
         "carbs": 10,
         "sugar": 2,
         "calories": 220,
@@ -60,7 +60,7 @@ recipes = [
     {
         "id": 3,
         "title": "Berry Yogurt Parfait",
-        "image": "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300&h=200&fit=crop&crop=center",
+        "image": "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&h=400&fit=crop",
         "carbs": 15,
         "sugar": 8,
         "calories": 150,
@@ -77,7 +77,7 @@ recipes = [
     {
         "id": 4,
         "title": "Roasted Chickpea Snack",
-        "image": "https://images.unsplash.com/photo-1601672159811-4c9db1ba8e8b?w=300&h=200&fit=crop&crop=center",
+        "image": "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&h=400&fit=crop",
         "carbs": 12,
         "sugar": 1,
         "calories": 130,
@@ -94,7 +94,7 @@ recipes = [
     {
         "id": 5,
         "title": "Greek Yogurt with Nuts",
-        "image": "https://images.unsplash.com/photo-1571212515416-27f2de55a5da?w=300&h=200&fit=crop&crop=center",
+        "image": "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=400&h=400&fit=crop",
         "carbs": 10,
         "sugar": 4,
         "calories": 160,
@@ -111,7 +111,7 @@ recipes = [
     {
         "id": 6,
         "title": "Cauliflower Rice Bowl",
-        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop&crop=center",
+        "image": "https://images.unsplash.com/photo-1534938665420-4193effeacc4?w=400&h=400&fit=crop",
         "carbs": 8,
         "sugar": 3,
         "calories": 140,
@@ -128,7 +128,7 @@ recipes = [
     {
         "id": 7,
         "title": "Avocado Toast",
-        "image": "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=300&h=200&fit=crop&crop=center",
+        "image": "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=400&h=400&fit=crop",
         "carbs": 25,
         "sugar": 2,
         "calories": 250,
@@ -145,7 +145,7 @@ recipes = [
     {
         "id": 8,
         "title": "Baked Salmon with Vegetables",
-        "image": "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=300&h=200&fit=crop&crop=center",
+        "image": "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=400&fit=crop",
         "carbs": 12,
         "sugar": 6,
         "calories": 320,
@@ -174,6 +174,7 @@ def signup():
     data = request.get_json()
     email = data["email"]
     password = data["password"]
+    name = data.get("name", "New User")  # Get name from request
 
     if email in users:
         return jsonify({"msg": "User already exists"}), 400
@@ -183,7 +184,7 @@ def signup():
     users[email] = {
         "password": hashed_pw,
         "profile": {
-            "name": "New User",
+            "name": name,
             "bio": "",
             "profile_picture": "",
             "goals": {"carbs": 200, "sugar": 50, "exercise": 30},
@@ -221,6 +222,22 @@ def get_profile():
     if user:
         reset_if_needed(user["profile"])
         return jsonify(user["profile"])
+    return jsonify({"error": "User not found"}), 404
+
+@app.route("/profile", methods=["PUT"])
+@jwt_required()
+def update_profile():
+    email = get_jwt_identity()
+    data = request.get_json()
+    user = users.get(email)
+    if user:
+        # Update name if provided
+        if "name" in data:
+            user["profile"]["name"] = data["name"]
+        # Update bio if provided
+        if "bio" in data:
+            user["profile"]["bio"] = data["bio"]
+        return jsonify({"message": "Profile updated", "profile": user["profile"]})
     return jsonify({"error": "User not found"}), 404
 
 @app.route("/goals", methods=["POST"])
