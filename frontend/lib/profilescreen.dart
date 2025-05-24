@@ -1,9 +1,4 @@
-Widget _buildFavoritesTab() {  Future<void> loadFavoriteRecipes() async {
-    final favorites = await RecipeUtils.getFavoriteRecipes();
-    setState(() {
-      favoriteRecipes = favorites;
-    });
-  }import 'dart:convert';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -126,6 +121,13 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         setState(() => imageUrl = savedImage.path);
       }
     }
+  }
+
+  Future<void> loadFavoriteRecipes() async {
+    final favorites = await RecipeUtils.getFavoriteRecipes();
+    setState(() {
+      favoriteRecipes = favorites;
+    });
   }
 
   Future<void> loadBloodSugarEntries() async {
@@ -629,6 +631,134 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFavoritesTab() {
+    if (favoriteRecipes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.favorite_border, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              "No favorite recipes yet",
+              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Add recipes to favorites from the home screen",
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: favoriteRecipes.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.75,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemBuilder: (context, index) {
+        final recipe = favoriteRecipes[index];
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => RecipeDetailScreen(recipe: recipe),
+            ),
+          ).then((_) => loadFavoriteRecipes()),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      child: Image.network(
+                        recipe.image,
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          height: 120,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.restaurant_menu, size: 48, color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.favorite, color: Colors.red, size: 20),
+                          onPressed: () async {
+                            // Remove from favorites
+                            await RecipeUtils.toggleFavorite(recipe);
+                            await loadFavoriteRecipes();
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        recipe.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.rice_bowl, size: 16, color: Colors.orange[600]),
+                          const SizedBox(width: 4),
+                          Text("${recipe.carbs}g", style: const TextStyle(fontSize: 12)),
+                          const SizedBox(width: 12),
+                          Icon(Icons.water_drop, size: 16, color: Colors.purple[600]),
+                          const SizedBox(width: 4),
+                          Text("${recipe.sugar}g", style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1185,132 +1315,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     } else {
       return Colors.green;
     }
-  }
-    if (favoriteRecipes.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.favorite_border, size: 80, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              "No favorite recipes yet",
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Add recipes to favorites from the home screen",
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: favoriteRecipes.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemBuilder: (context, index) {
-        final recipe = favoriteRecipes[index];
-        return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => RecipeDetailScreen(recipe: recipe),
-            ),
-          ).then((_) => loadFavoriteRecipes()),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                      child: Image.network(
-                        recipe.image,
-                        height: 120,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          height: 120,
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.restaurant_menu, size: 48, color: Colors.grey),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.favorite, color: Colors.red, size: 20),
-                          onPressed: () async {
-                            // Remove from favorites
-                            await RecipeUtils.toggleFavorite(recipe);
-                            await loadFavoriteRecipes();
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        recipe.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.rice_bowl, size: 16, color: Colors.orange[600]),
-                          const SizedBox(width: 4),
-                          Text("${recipe.carbs}g", style: const TextStyle(fontSize: 12)),
-                          const SizedBox(width: 12),
-                          Icon(Icons.water_drop, size: 16, color: Colors.purple[600]),
-                          const SizedBox(width: 4),
-                          Text("${recipe.sugar}g", style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   @override
