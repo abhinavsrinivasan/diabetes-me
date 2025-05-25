@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ingredient_intelligence_service.dart';
+import '../services/ingredient_intelligence_service.dart';
 
 class IngredientInsightModal extends StatefulWidget {
   final String ingredient;

@@ -1,6 +1,6 @@
+import 'widgets/ingredient_insight_modal.dart';
 import 'package:flutter/material.dart';
 import 'features/recipes/models/recipe.dart';
-import 'ingredient_insight_modal.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;

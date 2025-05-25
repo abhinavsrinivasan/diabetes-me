@@ -1,3 +1,4 @@
+import 'services/ingredient_intelligence_service.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
@@ -98,6 +99,13 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       }
     }
   }
+
+  Future<void> _showApiSettings() async {
+  showDialog(
+    context: context,
+    builder: (context) => const ApiSettingsDialog(),
+  );
+}
 
   Future<void> pickImage() async {
     final picker = ImagePicker();
@@ -1342,6 +1350,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                           Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
                         },
                       ),
+                      IconButton(
+    icon: const Icon(Icons.auto_awesome, color: Colors.deepPurple),
+    tooltip: 'AI Settings',
+    onPressed: _showApiSettings,
+  ),
                     ],
                     flexibleSpace: FlexibleSpaceBar(
                       background: Container(
@@ -1520,6 +1533,429 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: color, width: 2),
+        ),
+      ),
+    );
+  }
+}
+
+class ApiSettingsDialog extends StatefulWidget {
+  const ApiSettingsDialog({Key? key}) : super(key: key);
+
+  @override
+  State<ApiSettingsDialog> createState() => _ApiSettingsDialogState();
+}
+
+class _ApiSettingsDialogState extends State<ApiSettingsDialog> {
+  final _apiKeyController = TextEditingController();
+  bool _hasApiKey = false;
+  bool _isLoading = false;
+  bool _isTesting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkApiKey();
+  }
+
+  Future<void> _checkApiKey() async {
+    final hasKey = await IngredientIntelligenceService.hasOpenAIApiKey();
+    if (mounted) {
+      setState(() {
+        _hasApiKey = hasKey;
+      });
+    }
+  }
+
+  Future<void> _saveApiKey() async {
+    if (_apiKeyController.text.trim().isEmpty) {
+      _showError('Please enter an API key');
+      return;
+    }
+
+    if (!_apiKeyController.text.startsWith('sk-')) {
+      _showError('Invalid API key format. Should start with "sk-"');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await IngredientIntelligenceService.setOpenAIApiKey(_apiKeyController.text.trim());
+      
+      // Test the API key
+      setState(() {
+        _isLoading = false;
+        _isTesting = true;
+      });
+      
+      final isValid = await IngredientIntelligenceService.testOpenAIApiKey();
+      
+      if (mounted) {
+        setState(() {
+          _isTesting = false;
+        });
+        
+        if (isValid) {
+          setState(() {
+            _hasApiKey = true;
+          });
+          _showSuccess('API key saved and verified successfully!');
+          _apiKeyController.clear();
+        } else {
+          await IngredientIntelligenceService.clearOpenAIApiKey();
+          _showError('API key is invalid. Please check and try again.');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isTesting = false;
+        });
+        _showError('Failed to save API key: $e');
+      }
+    }
+  }
+
+  Future<void> _removeApiKey() async {
+    await IngredientIntelligenceService.clearOpenAIApiKey();
+    setState(() => _hasApiKey = false);
+    _showSuccess('API key removed. Using mock data.');
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.auto_awesome, color: Colors.blue[700], size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'AI Settings',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'Enable personalized ingredient insights',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Status Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _hasApiKey ? Colors.green[50] : Colors.orange[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _hasApiKey ? Colors.green[200]! : Colors.orange[200]!,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _hasApiKey ? Icons.check_circle : Icons.info_outline,
+                    color: _hasApiKey ? Colors.green[700] : Colors.orange[700],
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _hasApiKey ? 'AI Features Active' : 'Using Sample Data',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _hasApiKey ? Colors.green[700] : Colors.orange[700],
+                          ),
+                        ),
+                        Text(
+                          _hasApiKey 
+                            ? 'Getting real-time insights from OpenAI'
+                            : 'Add your API key for personalized insights',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _hasApiKey ? Colors.green[600] : Colors.orange[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            if (!_hasApiKey) ...[
+              // API Key Input Section
+              const Text(
+                'OpenAI API Key',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Get your key from platform.openai.com → API Keys',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 16),
+              
+              TextField(
+                controller: _apiKeyController,
+                decoration: InputDecoration(
+                  hintText: 'sk-...',
+                  prefixIcon: const Icon(Icons.key),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                ),
+                obscureText: true,
+                maxLines: 1,
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Save Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: (_isLoading || _isTesting) ? null : _saveApiKey,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[600],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: (_isLoading || _isTesting)
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(_isTesting ? 'Testing API Key...' : 'Saving...'),
+                        ],
+                      )
+                    : const Text('Save & Test API Key', style: TextStyle(fontSize: 16)),
+                ),
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Help Info
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'How to get your API key:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '1. Visit platform.openai.com\n'
+                      '2. Sign up or log in\n'
+                      '3. Go to "API Keys" section\n'
+                      '4. Create a new secret key\n'
+                      '5. Copy and paste it above',
+                      style: TextStyle(color: Colors.blue[600], fontSize: 14),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '💰 Cost: ~\$0.002 per ingredient insight (very affordable!)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // API Key Active Section
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'AI Features Enabled',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green[700],
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                'You\'re now getting personalized ingredient insights!',
+                                style: TextStyle(color: Colors.green[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _removeApiKey,
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            label: const Text('Remove Key'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red[600],
+                              side: BorderSide(color: Colors.red[300]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Try tapping ingredients in any recipe!'),
+                                  backgroundColor: Colors.blue,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.explore, size: 18),
+                            label: const Text('Try It Out'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green[600],
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
