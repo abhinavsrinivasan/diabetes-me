@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'features/recipes/models/recipe.dart';
+import 'ingredient_insight_modal.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
@@ -12,35 +13,51 @@ class RecipeDetailScreen extends StatefulWidget {
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool isFavorite = false;
+  List<String> modifiedIngredients = [];
 
-  // Mock ingredient data with icons
-  List<Map<String, dynamic>> get ingredientsList => [
-    {
-      'icon': '🥖',
-      'name': widget.recipe.ingredients.isNotEmpty ? widget.recipe.ingredients[0] : 'Bread',
-      'amount': '2 slices'
-    },
-    {
-      'icon': '🫒',
-      'name': widget.recipe.ingredients.length > 1 ? widget.recipe.ingredients[1] : 'Olive oil',
-      'amount': '1 tbsp'
-    },
-    {
-      'icon': '🧄',
-      'name': widget.recipe.ingredients.length > 2 ? widget.recipe.ingredients[2] : 'Garlic',
-      'amount': '1 clove'
-    },
-    {
-      'icon': '🧂',
-      'name': 'Salt and pepper',
-      'amount': 'To taste'
-    },
-    ...widget.recipe.ingredients.skip(3).map((ingredient) => {
-      'icon': _getIngredientIcon(ingredient),
-      'name': ingredient,
-      'amount': '1 portion'
-    }).toList(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with original ingredients
+    modifiedIngredients = List.from(widget.recipe.ingredients);
+  }
+
+  // Mock ingredient data with icons and amounts
+  List<Map<String, dynamic>> get ingredientsList {
+    final baseIngredients = [
+      {
+        'icon': '🥖',
+        'name': modifiedIngredients.isNotEmpty ? modifiedIngredients[0] : 'Bread',
+        'amount': '2 slices'
+      },
+      {
+        'icon': '🫒',
+        'name': modifiedIngredients.length > 1 ? modifiedIngredients[1] : 'Olive oil',
+        'amount': '1 tbsp'
+      },
+      {
+        'icon': '🧄',
+        'name': modifiedIngredients.length > 2 ? modifiedIngredients[2] : 'Garlic',
+        'amount': '1 clove'
+      },
+      {
+        'icon': '🧂',
+        'name': 'Salt and pepper',
+        'amount': 'To taste'
+      },
+    ];
+
+    // Add remaining ingredients
+    for (int i = 3; i < modifiedIngredients.length; i++) {
+      baseIngredients.add({
+        'icon': _getIngredientIcon(modifiedIngredients[i]),
+        'name': modifiedIngredients[i],
+        'amount': _getIngredientAmount(modifiedIngredients[i])
+      });
+    }
+    
+    return baseIngredients;
+  }
 
   String _getIngredientIcon(String ingredient) {
     final lower = ingredient.toLowerCase();
@@ -55,7 +72,49 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     if (lower.contains('blueberry')) return '🫐';
     if (lower.contains('nuts') || lower.contains('almond')) return '🥜';
     if (lower.contains('honey')) return '🍯';
+    if (lower.contains('bell pepper')) return '🫑';
+    if (lower.contains('broccoli')) return '🥦';
+    if (lower.contains('zucchini')) return '🥒';
+    if (lower.contains('mushroom')) return '🍄';
+    if (lower.contains('carrot')) return '🥕';
+    if (lower.contains('onion')) return '🧅';
     return '🥄'; // Default icon
+  }
+
+  String _getIngredientAmount(String ingredient) {
+    final lower = ingredient.toLowerCase();
+    if (lower.contains('oil')) return '1-2 tbsp';
+    if (lower.contains('cheese')) return '1/4 cup';
+    if (lower.contains('chicken')) return '4 oz';
+    if (lower.contains('yogurt')) return '1/2 cup';
+    if (lower.contains('nuts')) return '1/4 cup';
+    if (lower.contains('berry') || lower.contains('fruit')) return '1/2 cup';
+    if (lower.contains('vegetable') || lower.contains('pepper') || lower.contains('broccoli')) return '1 cup';
+    return '1 portion';
+  }
+
+  void _onIngredientTapped(String ingredient) {
+    showIngredientInsight(
+      context: context,
+      ingredient: ingredient,
+      recipeTitle: widget.recipe.title,
+      recipeCategory: widget.recipe.category,
+      onReplaceIngredient: (newIngredient) {
+        setState(() {
+          // Find and replace the ingredient
+          final index = modifiedIngredients.indexWhere(
+            (ing) => ing.toLowerCase().contains(ingredient.toLowerCase()),
+          );
+          if (index != -1) {
+            modifiedIngredients[index] = newIngredient;
+          }
+        });
+      },
+      onAddToGroceryList: (ingredientToAdd) {
+        // Handle adding to grocery list
+        // This could integrate with a grocery list feature
+      },
+    );
   }
 
   @override
@@ -102,6 +161,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         content: Text(isFavorite ? 'Added to favorites!' : 'Removed from favorites'),
                         backgroundColor: isFavorite ? const Color(0xFF4CAF50) : Colors.grey[600],
                         duration: const Duration(seconds: 1),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     );
                   },
@@ -203,7 +264,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         children: [
                           _buildStatItem('Calories', '${widget.recipe.calories} cal'),
                           Container(width: 1, height: 40, color: Colors.grey[300]),
-                          _buildStatItem('Ingredients', '${widget.recipe.ingredients.length.toString().padLeft(2, '0')}'),
+                          _buildStatItem('Ingredients', '${ingredientsList.length.toString().padLeft(2, '0')}'),
                           Container(width: 1, height: 40, color: Colors.grey[300]),
                           _buildStatItem('Total Time', '25 min'),
                         ],
@@ -266,17 +327,48 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
                     const SizedBox(height: 32),
 
-                    // Ingredients Section
+                    // Ingredients Section with Interactive Header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Ingredients',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
+                        Row(
+                          children: [
+                            const Text(
+                              'Ingredients',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.touch_app,
+                                    size: 14,
+                                    color: Colors.blue[700],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Tap to explore',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blue[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -297,53 +389,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Ingredients List
-                    ...ingredientsList.map((ingredient) => Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[200]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8F9FA),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(
-                                ingredient['icon'],
-                                style: const TextStyle(fontSize: 24),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              ingredient['name'],
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            ingredient['amount'],
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )).toList(),
+                    // Interactive Ingredients List
+                    ...ingredientsList.map((ingredient) => _buildInteractiveIngredientCard(ingredient)).toList(),
 
                     const SizedBox(height: 32),
 
@@ -416,6 +463,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             const SnackBar(
                               content: Text('Happy cooking! Timer feature coming soon.'),
                               backgroundColor: Color(0xFF4CAF50),
+                              behavior: SnackBarBehavior.floating,
                             ),
                           );
                         },
@@ -444,6 +492,114 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInteractiveIngredientCard(Map<String, dynamic> ingredient) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onIngredientTapped(ingredient['name']),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey[200]!),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Icon container with subtle animation hint
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.blue.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      ingredient['icon'],
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              ingredient['name'],
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            ingredient['amount'],
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tap for insights & substitutes',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // Subtle tap indicator
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.lightbulb_outline,
+                    size: 16,
+                    color: Colors.blue[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
