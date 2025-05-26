@@ -7,7 +7,8 @@ import 'features/recipes/models/recipe.dart';
 import 'services/auth_service.dart';
 
 class RecipeUtils {
-  static final String baseUrl = kIsWeb ? 'http://127.0.0.1:5000' : 'http://10.0.2.2:5000';
+ 
+static final String baseUrl = kIsWeb ? 'http://127.0.0.1:5001' : 'http://10.0.2.2:5001';
   
   static Future<String?> _getUserEmail() async {
     final token = await AuthService().getToken();
