@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'homescreen.dart';
 import 'profilescreen.dart';
 import 'grocery_list_screen.dart';
+import 'barcode_scanner_screen.dart';
 import 'services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'grocery_list_screen.dart';
 
 void main() => runApp(const DiabetesMeApp());
 
@@ -55,6 +55,7 @@ class DiabetesMeApp extends StatelessWidget {
         '/': (context) => const AuthWrapper(),
         '/home': (context) => const MainAppScaffold(),
         '/grocery': (context) => const GroceryListScreen(),
+        '/scanner': (context) => const BarcodeScannerScreen(),
       },
     );
   }
@@ -93,6 +94,7 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
   final List<Widget> _tabs = [
     HomeScreen(),
     const GroceryListScreen(),
+    const BarcodeScannerScreen(),
     const ProfileScreen(),
   ];
 
@@ -117,6 +119,11 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
             icon: Icon(Icons.shopping_cart_outlined), 
             selectedIcon: Icon(Icons.shopping_cart), 
             label: 'Grocery List'
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.qr_code_scanner_outlined), 
+            selectedIcon: Icon(Icons.qr_code_scanner), 
+            label: 'Scanner'
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline), 
