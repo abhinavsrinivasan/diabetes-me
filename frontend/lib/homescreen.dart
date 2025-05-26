@@ -116,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
       1: 'https://images.unsplash.com/photo-1609501676725-7186f017a4b7?w=400&h=400&fit=crop', // Zucchini noodles
       2: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=400&fit=crop', // Salad
       3: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&h=400&fit=crop', // Yogurt parfait
-      4: 'https://images.unsplash.com/photo-1582169296194-e4d644f24d1a?w=400&h=400&fit=crop', // Chickpeas (fixed URL)
+      4: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=400&fit=crop', // Chickpeas (working Unsplash URL)
       5: 'https://images.unsplash.com/photo-1488900128323-21503983a07e?w=400&h=400&fit=crop', // Greek yogurt
       6: 'https://images.unsplash.com/photo-1534938665420-4193effeacc4?w=400&h=400&fit=crop', // Cauliflower
       7: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=400&h=400&fit=crop', // Avocado toast

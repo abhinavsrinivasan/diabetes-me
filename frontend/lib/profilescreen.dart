@@ -1330,16 +1330,18 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: profile.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : NestedScrollView(
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: const Color(0xFFF8F9FA),
+    body: profile.isEmpty
+        ? const Center(child: CircularProgressIndicator())
+        : DefaultTabController(
+            length: 3,
+            child: NestedScrollView(
               headerSliverBuilder: (context, innerBoxIsScrolled) {
                 return [
                   SliverAppBar(
-                    expandedHeight: 320,
+                    expandedHeight: 280, // Reduced from 320
                     floating: false,
                     pinned: true,
                     backgroundColor: Colors.white,
@@ -1355,10 +1357,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                         },
                       ),
                       IconButton(
-    icon: const Icon(Icons.auto_awesome, color: Colors.deepPurple),
-    tooltip: 'AI Settings',
-    onPressed: _showApiSettings,
-  ),
+                        icon: const Icon(Icons.auto_awesome, color: Colors.deepPurple),
+                        tooltip: 'AI Settings',
+                        onPressed: _showApiSettings,
+                      ),
                     ],
                     flexibleSpace: FlexibleSpaceBar(
                       background: Container(
@@ -1374,17 +1376,19 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                         ),
                         child: SafeArea(
                           child: Padding(
-                            padding: const EdgeInsets.only(bottom: 60), // Add padding for tab bar
+                            padding: const EdgeInsets.only(bottom: 50), // Reduced padding
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min, // Important: Use min size
                               children: [
-                                const SizedBox(height: 20),
+                                const Spacer(flex: 1), // Use spacers for better distribution
+                                
                                 // Profile Picture
                                 GestureDetector(
                                   onTap: pickImage,
                                   child: Container(
-                                    width: 100,
-                                    height: 100,
+                                    width: 80, // Slightly smaller
+                                    height: 80,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       gradient: LinearGradient(
@@ -1393,8 +1397,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.deepPurple.withOpacity(0.3),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 10),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 8),
                                         ),
                                       ],
                                     ),
@@ -1403,48 +1407,58 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                                           ? (kIsWeb
                                               ? (imageUrl!.startsWith('data:') || imageUrl!.length > 200
                                                   ? Image.memory(base64Decode(imageUrl!), fit: BoxFit.cover)
-                                                  : const Icon(Icons.person, size: 50, color: Colors.white))
+                                                  : const Icon(Icons.person, size: 40, color: Colors.white))
                                               : Image.file(File(imageUrl!), fit: BoxFit.cover))
-                                          : const Icon(Icons.person, size: 50, color: Colors.white),
+                                          : const Icon(Icons.person, size: 40, color: Colors.white),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
+                                
+                                const SizedBox(height: 8),
                                 Text(
                                   "Tap to change photo",
-                                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                 ),
-                                const SizedBox(height: 16),
+                                
+                                const SizedBox(height: 12),
+                                
                                 // Name
                                 Text(
                                   profile['name'] ?? 'User',
                                   style: const TextStyle(
-                                    fontSize: 24,
+                                    fontSize: 20, // Slightly smaller
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black87,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                // Bio Section
+                                
+                                const SizedBox(height: 8),
+                                
+                                // Bio Section - Simplified
                                 Container(
-                                  constraints: const BoxConstraints(maxWidth: 300),
+                                  constraints: const BoxConstraints(maxWidth: 280),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Flexible(
                                         child: isEditingBio
-                                            ? TextField(
-                                                controller: bioController,
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(fontSize: 14),
-                                                decoration: InputDecoration(
-                                                  hintText: "Add a bio...",
-                                                  filled: true,
-                                                  fillColor: Colors.white,
-                                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                                  border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.circular(12),
-                                                    borderSide: BorderSide(color: Colors.grey[300]!),
+                                            ? SizedBox(
+                                                height: 35, // Fixed height
+                                                child: TextField(
+                                                  controller: bioController,
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(fontSize: 12),
+                                                  maxLines: 1, // Single line only
+                                                  decoration: InputDecoration(
+                                                    hintText: "Add a bio...",
+                                                    filled: true,
+                                                    fillColor: Colors.white,
+                                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      borderSide: BorderSide(color: Colors.grey[300]!),
+                                                    ),
                                                   ),
                                                 ),
                                               )
@@ -1452,19 +1466,19 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                                                 bioController.text.isNotEmpty ? bioController.text : "Add a bio...",
                                                 textAlign: TextAlign.center,
                                                 style: TextStyle(
-                                                  fontSize: 14,
+                                                  fontSize: 12,
                                                   color: bioController.text.isNotEmpty ? Colors.black87 : Colors.grey[500],
                                                 ),
-                                                maxLines: 2,
+                                                maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 6),
                                       IconButton(
                                         icon: Icon(
                                           isEditingBio ? Icons.check_circle : Icons.edit,
                                           color: Colors.deepPurple,
-                                          size: 20,
+                                          size: 18,
                                         ),
                                         onPressed: () {
                                           if (isEditingBio) {
@@ -1473,32 +1487,37 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                                             setState(() => isEditingBio = true);
                                           }
                                         },
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 30,
+                                          minHeight: 30,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
+                                
+                                const Spacer(flex: 1),
                               ],
                             ),
                           ),
                         ),
                       ),
                     ),
-                    bottom: TabBar(
-                      controller: _tabController,
+                    bottom: const TabBar(
                       labelColor: Colors.deepPurple,
                       unselectedLabelColor: Colors.grey,
                       indicatorColor: Colors.deepPurple,
-                      tabs: const [
-                        Tab(text: "Daily Goals", icon: Icon(Icons.track_changes)),
-                        Tab(text: "Favorites", icon: Icon(Icons.favorite)),
-                        Tab(text: "Blood Sugar", icon: Icon(Icons.water_drop)),
+                      tabs: [
+                        Tab(text: "Goals", icon: Icon(Icons.track_changes, size: 20)),
+                        Tab(text: "Favorites", icon: Icon(Icons.favorite, size: 20)),
+                        Tab(text: "Blood Sugar", icon: Icon(Icons.water_drop, size: 20)),
                       ],
                     ),
                   ),
                 ];
               },
               body: TabBarView(
-                controller: _tabController,
                 children: [
                   _buildDailyGoalsTab(),
                   _buildFavoritesTab(),
@@ -1506,8 +1525,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 ],
               ),
             ),
-    );
-  }
+          ),
+  );
+}
 
   Widget _buildGoalInput({
     required TextEditingController controller,
@@ -1543,119 +1563,29 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 }
 
-class ApiSettingsDialog extends StatefulWidget {
-  const ApiSettingsDialog({Key? key}) : super(key: key);
+// Since we're now using a StatelessWidget for ApiSettingsDialog, 
+// you can completely REMOVE the _ApiSettingsDialogState class from your code.
 
-  @override
-  State<ApiSettingsDialog> createState() => _ApiSettingsDialogState();
-}
-
+// DELETE this entire class from your profilescreen.dart:
+/*
 class _ApiSettingsDialogState extends State<ApiSettingsDialog> {
-  final _apiKeyController = TextEditingController();
-  bool _hasApiKey = false;
-  bool _isLoading = false;
-  bool _isTesting = false;
+  // ... all the state management code
+  // ... all the methods like _checkApiKey, _saveApiKey, etc.
+  // ... the entire build method
+}
+*/
 
-  @override
-  void initState() {
-    super.initState();
-    _checkApiKey();
-  }
+// Just keep the new StatelessWidget version I provided:
 
-  Future<void> _checkApiKey() async {
-    final hasKey = await IngredientIntelligenceService.hasOpenAIApiKey();
-    if (mounted) {
-      setState(() {
-        _hasApiKey = hasKey;
-      });
-    }
-  }
-
-  Future<void> _saveApiKey() async {
-    if (_apiKeyController.text.trim().isEmpty) {
-      _showError('Please enter an API key');
-      return;
-    }
-
-    if (!_apiKeyController.text.startsWith('sk-')) {
-      _showError('Invalid API key format. Should start with "sk-"');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      await IngredientIntelligenceService.setOpenAIApiKey(_apiKeyController.text.trim());
-      
-      // Test the API key
-      setState(() {
-        _isLoading = false;
-        _isTesting = true;
-      });
-      
-      final isValid = await IngredientIntelligenceService.testOpenAIApiKey();
-      
-      if (mounted) {
-        setState(() {
-          _isTesting = false;
-        });
-        
-        if (isValid) {
-          setState(() {
-            _hasApiKey = true;
-          });
-          _showSuccess('API key saved and verified successfully!');
-          _apiKeyController.clear();
-        } else {
-          await IngredientIntelligenceService.clearOpenAIApiKey();
-          _showError('API key is invalid. Please check and try again.');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isTesting = false;
-        });
-        _showError('Failed to save API key: $e');
-      }
-    }
-  }
-
-  Future<void> _removeApiKey() async {
-    await IngredientIntelligenceService.clearOpenAIApiKey();
-    setState(() => _hasApiKey = false);
-    _showSuccess('API key removed. Using mock data.');
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
+class ApiSettingsDialog extends StatelessWidget {
+  const ApiSettingsDialog({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 400),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1667,10 +1597,10 @@ class _ApiSettingsDialogState extends State<ApiSettingsDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: Colors.green[50],
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.auto_awesome, color: Colors.blue[700], size: 24),
+                  child: Icon(Icons.auto_awesome, color: Colors.green[700], size: 24),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1686,7 +1616,7 @@ class _ApiSettingsDialogState extends State<ApiSettingsDialog> {
                         ),
                       ),
                       Text(
-                        'Enable personalized ingredient insights',
+                        'Personalized ingredient insights enabled',
                         style: TextStyle(color: Colors.grey[600]),
                       ),
                     ],
@@ -1701,267 +1631,186 @@ class _ApiSettingsDialogState extends State<ApiSettingsDialog> {
             
             const SizedBox(height: 24),
             
-            // Status Card
+            // Status Card - Always active
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _hasApiKey ? Colors.green[50] : Colors.orange[50],
+                color: Colors.green[50],
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _hasApiKey ? Colors.green[200]! : Colors.orange[200]!,
-                ),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green[700], size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AI Features Active',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[700],
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Getting real-time insights from OpenAI',
+                              style: TextStyle(color: Colors.green[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Usage Stats
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(
+                          children: [
+                            Text(
+                              '${IngredientIntelligenceService.getCacheSize()}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[700],
+                              ),
+                            ),
+                            Text(
+                              'Cached Insights',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.green[200],
+                        ),
+                        Column(
+                          children: [
+                            Icon(
+                              Icons.eco,
+                              color: Colors.green[700],
+                              size: 20,
+                            ),
+                            Text(
+                              'Cost Optimized',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            IngredientIntelligenceService.clearCache();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Cache cleared!'),
+                                backgroundColor: Colors.orange,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Clear Cache'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.orange[600],
+                            side: BorderSide(color: Colors.orange[300]!),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Try tapping ingredients in any recipe!'),
+                                backgroundColor: Colors.blue,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.explore, size: 18),
+                          label: const Text('Try It Out'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[600],
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Info Note
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    _hasApiKey ? Icons.check_circle : Icons.info_outline,
-                    color: _hasApiKey ? Colors.green[700] : Colors.orange[700],
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
+                  Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _hasApiKey ? 'AI Features Active' : 'Using Sample Data',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _hasApiKey ? Colors.green[700] : Colors.orange[700],
-                          ),
-                        ),
-                        Text(
-                          _hasApiKey 
-                            ? 'Getting real-time insights from OpenAI'
-                            : 'Add your API key for personalized insights',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: _hasApiKey ? Colors.green[600] : Colors.orange[600],
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Tap any ingredient in a recipe to get diabetes-friendly insights and substitutions!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue[700],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            if (!_hasApiKey) ...[
-              // API Key Input Section
-              const Text(
-                'OpenAI API Key',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Get your key from platform.openai.com → API Keys',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 16),
-              
-              TextField(
-                controller: _apiKeyController,
-                decoration: InputDecoration(
-                  hintText: 'sk-...',
-                  prefixIcon: const Icon(Icons.key),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
-                  ),
-                ),
-                obscureText: true,
-                maxLines: 1,
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (_isLoading || _isTesting) ? null : _saveApiKey,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: (_isLoading || _isTesting)
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(_isTesting ? 'Testing API Key...' : 'Saving...'),
-                        ],
-                      )
-                    : const Text('Save & Test API Key', style: TextStyle(fontSize: 16)),
-                ),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Help Info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'How to get your API key:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '1. Visit platform.openai.com\n'
-                      '2. Sign up or log in\n'
-                      '3. Go to "API Keys" section\n'
-                      '4. Create a new secret key\n'
-                      '5. Copy and paste it above',
-                      style: TextStyle(color: Colors.blue[600], fontSize: 14),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.green[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '💰 Cost: ~\$0.002 per ingredient insight (very affordable!)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              // API Key Active Section
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green[200]!),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green[700]),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'AI Features Enabled',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green[700],
-                                  fontSize: 16,
-                                ),
-                              ),
-                              Text(
-                                'You\'re now getting personalized ingredient insights!',
-                                style: TextStyle(color: Colors.green[600]),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _removeApiKey,
-                            icon: const Icon(Icons.delete_outline, size: 18),
-                            label: const Text('Remove Key'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red[600],
-                              side: BorderSide(color: Colors.red[300]!),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Try tapping ingredients in any recipe!'),
-                                  backgroundColor: Colors.blue,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.explore, size: 18),
-                            label: const Text('Try It Out'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green[600],
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 }
+

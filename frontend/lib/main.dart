@@ -70,10 +70,53 @@ class AuthWrapper extends StatelessWidget {
       future: AuthService().getToken(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        } else if (snapshot.hasData && snapshot.data != null) {
-          return const MainAppScaffold();
+          return const Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading...'),
+                ],
+              ),
+            ),
+          );
+        } 
+        
+        // Check if we have a valid token
+        if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
+          // Verify token is valid by testing the profile endpoint
+          return FutureBuilder<Map<String, dynamic>?>(
+            future: AuthService().getProfile(),
+            builder: (context, profileSnapshot) {
+              if (profileSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Verifying authentication...'),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              // If profile fetch succeeds, user is authenticated
+              if (profileSnapshot.hasData && profileSnapshot.data != null) {
+                return const MainAppScaffold();
+              } else {
+                // Token is invalid, clear it and show login
+                AuthService().logout();
+                return const LoginScreen();
+              }
+            },
+          );
         } else {
+          // No token, show login screen
           return const LoginScreen();
         }
       },
