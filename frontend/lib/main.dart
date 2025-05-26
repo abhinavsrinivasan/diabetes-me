@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'homescreen.dart';
 import 'profilescreen.dart';
+import 'grocery_list_screen.dart';
 import 'services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'grocery_list_screen.dart';
 
 void main() => runApp(const DiabetesMeApp());
 
@@ -52,6 +54,7 @@ class DiabetesMeApp extends StatelessWidget {
       routes: {
         '/': (context) => const AuthWrapper(),
         '/home': (context) => const MainAppScaffold(),
+        '/grocery': (context) => const GroceryListScreen(),
       },
     );
   }
@@ -89,7 +92,8 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
 
   final List<Widget> _tabs = [
     HomeScreen(),
-    const ProfileScreen(),  // Added const here
+    const GroceryListScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -104,8 +108,21 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
         onDestinationSelected: (index) => setState(() => _currentIndex = index),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined), 
+            selectedIcon: Icon(Icons.home), 
+            label: 'Home'
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.shopping_cart_outlined), 
+            selectedIcon: Icon(Icons.shopping_cart), 
+            label: 'Grocery List'
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline), 
+            selectedIcon: Icon(Icons.person), 
+            label: 'Profile'
+          ),
         ],
       ),
     );

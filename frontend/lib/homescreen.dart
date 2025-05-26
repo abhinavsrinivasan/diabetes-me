@@ -3,9 +3,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'features/recipes/models/recipe.dart';
 import 'recipedetail.dart';
 import 'recipe_utils.dart';
+import 'grocery_list_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'services/auth_service.dart';
+import 'grocery_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -16,7 +18,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Recipe> allRecipes = []; // full list
   List<Recipe> filteredRecipes = []; // filtered list
   String selectedCategory = 'All';
+  String selectedCuisine = 'All';
   List<String> categories = ['All', 'Snacks', 'Breakfast', 'Lunch', 'Dinner', 'Dessert'];
+  List<String> cuisines = ['All', 'American', 'Italian', 'Mexican', 'Asian', 'Mediterranean', 'Indian', 'French'];
   String searchQuery = '';
   String userName = '';
   String greeting = '';
@@ -78,8 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           allRecipes = data.map((item) => Recipe.fromJson(item)).toList();
           // Update recipes with working image URLs
-          for (var recipe in allRecipes) {
-            recipe = updateRecipeImage(recipe);
+          for (var i = 0; i < allRecipes.length; i++) {
+            allRecipes[i] = updateRecipeImage(allRecipes[i]);
           }
           filteredRecipes = List.from(allRecipes);
         });
@@ -123,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
       sugar: recipe.sugar,
       calories: recipe.calories,
       category: recipe.category,
+      cuisine: recipe.cuisine,
       glycemicIndex: recipe.glycemicIndex,
       ingredients: recipe.ingredients,
       instructions: recipe.instructions,
@@ -136,8 +141,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final matchSugar = recipe.sugar >= sugarRange.start && recipe.sugar <= sugarRange.end;
         final matchGI = recipe.glycemicIndex >= giRange.start && recipe.glycemicIndex <= giRange.end;
         final matchCategory = selectedCategory == 'All' || recipe.category == selectedCategory;
+        final matchCuisine = selectedCuisine == 'All' || recipe.cuisine == selectedCuisine;
         final matchSearch = recipe.title.toLowerCase().contains(searchQuery.toLowerCase());
-        return matchCarbs && matchSugar && matchGI && matchCategory && matchSearch;
+        return matchCarbs && matchSugar && matchGI && matchCategory && matchCuisine && matchSearch;
       }).toList();
     });
   }
@@ -150,13 +156,81 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, setState) {
             return Dialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              child: Padding(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                ),
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text("Filter Recipes", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 20),
+                    
+                    // Category Filter
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Category", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: categories.map((category) {
+                            final isSelected = selectedCategory == category;
+                            return ChoiceChip(
+                              label: Text(category),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  selectedCategory = category;
+                                });
+                              },
+                              selectedColor: Colors.deepPurple,
+                              backgroundColor: Colors.grey[200],
+                              labelStyle: TextStyle(
+                                color: isSelected ? Colors.white : Colors.black87,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Cuisine Filter
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Cuisine", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: cuisines.map((cuisine) {
+                            final isSelected = selectedCuisine == cuisine;
+                            return ChoiceChip(
+                              label: Text(cuisine),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  selectedCuisine = cuisine;
+                                });
+                              },
+                              selectedColor: Colors.orange,
+                              backgroundColor: Colors.grey[200],
+                              labelStyle: TextStyle(
+                                color: isSelected ? Colors.white : Colors.black87,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
                     _buildSlider("Carbs (g)", carbRange, (val) => setState(() => carbRange = val)),
                     _buildSlider("Sugar (g)", sugarRange, (val) => setState(() => sugarRange = val)),
                     _buildSlider("Glycemic Index", giRange, (val) => setState(() => giRange = val)),
@@ -185,25 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildSlider(String label, RangeValues range, Function(RangeValues) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label),
-        RangeSlider(
-          values: range,
-          min: 0,
-          max: 100,
-          divisions: 20,
-          labels: RangeLabels('${range.start.round()}', '${range.end.round()}'),
-          activeColor: Colors.deepPurple,
-          onChanged: onChanged,
-        ),
-        const SizedBox(height: 10),
-      ],
     );
   }
 
@@ -236,6 +291,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Row(
                     children: [
+                      IconButton(
+                        icon: const Icon(Icons.shopping_cart_outlined, color: Colors.deepPurple),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const GroceryListScreen()),
+                          );
+                        },
+                        tooltip: 'Grocery List',
+                      ),
                       IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.deepPurple),
                         onPressed: () {
@@ -276,35 +341,89 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 16),
 
-              // Category Chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: categories.map((cat) {
-                    final isSelected = cat == selectedCategory;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(cat),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() {
-                            selectedCategory = cat;
-                            applyFilters();
-                          });
-                        },
-                        selectedColor: Colors.deepPurple,
-                        backgroundColor: Colors.white,
-                        labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
-                        shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
+              // Active Filters Display (if any filters are applied)
+              if (selectedCategory != 'All' || selectedCuisine != 'All' || 
+                  carbRange.start != 0 || carbRange.end != 100 || 
+                  sugarRange.start != 0 || sugarRange.end != 50 ||
+                  giRange.start != 0 || giRange.end != 100)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.filter_list, size: 16, color: Colors.blue[700]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Active Filters:',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedCategory = 'All';
+                                selectedCuisine = 'All';
+                                carbRange = const RangeValues(0, 100);
+                                sugarRange = const RangeValues(0, 50);
+                                giRange = const RangeValues(0, 100);
+                                applyFilters();
+                              });
+                            },
+                            child: Text(
+                              'Clear All',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    );
-                  }).toList(),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (selectedCategory != 'All')
+                            _buildFilterChip('Category: $selectedCategory', Colors.deepPurple),
+                          if (selectedCuisine != 'All')
+                            _buildFilterChip('Cuisine: $selectedCuisine', Colors.orange),
+                          if (carbRange.start != 0 || carbRange.end != 100)
+                            _buildFilterChip('Carbs: ${carbRange.start.round()}-${carbRange.end.round()}g', Colors.green),
+                          if (sugarRange.start != 0 || sugarRange.end != 50)
+                            _buildFilterChip('Sugar: ${sugarRange.start.round()}-${sugarRange.end.round()}g', Colors.purple),
+                          if (giRange.start != 0 || giRange.end != 100)
+                            _buildFilterChip('GI: ${giRange.start.round()}-${giRange.end.round()}', Colors.blue),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
+
+              if (selectedCategory != 'All' || selectedCuisine != 'All' || 
+                  carbRange.start != 0 || carbRange.end != 100 || 
+                  sugarRange.start != 0 || sugarRange.end != 50 ||
+                  giRange.start != 0 || giRange.end != 100)
+                const SizedBox(height: 16),
+
+              const SizedBox(height: 4),
 
               // Recipes Grid or Loading/Error State
               Expanded(
@@ -461,6 +580,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ],
                                             ),
                                           ),
+                                          // Cuisine badge
+                                          Positioned(
+                                            top: 8,
+                                            left: 8,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange.withOpacity(0.9),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                recipe.cuisine,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                       Padding(
@@ -471,6 +610,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                             Text(recipe.title,
                                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                                             const SizedBox(height: 6),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.local_dining, size: 12, color: Colors.grey[600]),
+                                                const SizedBox(width: 4),
+                                                Text(recipe.category, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
                                             Text("Carbs: ${recipe.carbs}g\nSugar: ${recipe.sugar}g\nGI: ${recipe.glycemicIndex}",
                                                 style: const TextStyle(fontSize: 12)),
                                           ],
@@ -487,6 +634,44 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSlider(String label, RangeValues range, Function(RangeValues) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        RangeSlider(
+          values: range,
+          min: 0,
+          max: 100,
+          divisions: 20,
+          labels: RangeLabels('${range.start.round()}', '${range.end.round()}'),
+          activeColor: Colors.deepPurple,
+          onChanged: onChanged,
+        ),
+        const SizedBox(height: 10),
+      ],
     );
   }
 }

@@ -7,7 +7,6 @@ class IngredientInsightModal extends StatefulWidget {
   final String? recipeCategory;
   final VoidCallback? onClose;
   final Function(String)? onReplaceIngredient;
-  final Function(String)? onAddToGroceryList;
 
   const IngredientInsightModal({
     Key? key,
@@ -16,7 +15,6 @@ class IngredientInsightModal extends StatefulWidget {
     this.recipeCategory,
     this.onClose,
     this.onReplaceIngredient,
-    this.onAddToGroceryList,
   }) : super(key: key);
 
   @override
@@ -27,6 +25,7 @@ class _IngredientInsightModalState extends State<IngredientInsightModal>
     with TickerProviderStateMixin {
   IngredientInsight? _insight;
   bool _isLoading = true;
+  bool _hasApiKey = false;
   late AnimationController _slideController;
   late AnimationController _fadeController;
   late Animation<Offset> _slideAnimation;
@@ -61,7 +60,7 @@ class _IngredientInsightModalState extends State<IngredientInsightModal>
       curve: Curves.easeIn,
     ));
 
-    _loadIngredientInsight();
+    _checkApiKeyAndLoadInsight();
     _slideController.forward();
     _fadeController.forward();
   }
@@ -71,6 +70,21 @@ class _IngredientInsightModalState extends State<IngredientInsightModal>
     _slideController.dispose();
     _fadeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkApiKeyAndLoadInsight() async {
+    final hasKey = await IngredientIntelligenceService.hasOpenAIApiKey();
+    setState(() {
+      _hasApiKey = hasKey;
+    });
+
+    if (hasKey) {
+      await _loadIngredientInsight();
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _loadIngredientInsight() async {
@@ -195,17 +209,70 @@ class _IngredientInsightModalState extends State<IngredientInsightModal>
                   
                   // Content
                   Flexible(
-                    child: _isLoading
-                        ? _buildLoadingState()
-                        : _insight != null
-                            ? _buildInsightContent()
-                            : _buildErrorState(),
+                    child: !_hasApiKey
+                        ? _buildNoApiKeyState()
+                        : _isLoading
+                            ? _buildLoadingState()
+                            : _insight != null
+                                ? _buildInsightContent()
+                                : _buildErrorState(),
                   ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildNoApiKeyState() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.key_off,
+            size: 48,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'AI Insights Unavailable',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'To get personalized ingredient insights and substitutions, please add your OpenAI API key in Profile → AI Settings.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              _closeModal();
+              // Navigate to profile settings
+              Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[600],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Go to Settings'),
+          ),
+        ],
       ),
     );
   }
@@ -341,60 +408,6 @@ class _IngredientInsightModalState extends State<IngredientInsightModal>
               _buildSubstituteCard(substitute),
             ).toList(),
           ],
-          
-          const SizedBox(height: 32),
-          
-          // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    // Add to grocery list functionality
-                    if (widget.onAddToGroceryList != null) {
-                      widget.onAddToGroceryList!(widget.ingredient);
-                    }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('${widget.ingredient} added to grocery list!'),
-                        backgroundColor: Colors.green[600],
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add_shopping_cart),
-                  label: const Text('Add to List'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Show more substitutes or detailed nutritional info
-                    _showMoreOptions();
-                  },
-                  icon: const Icon(Icons.explore),
-                  label: const Text('Learn More'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[600],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -556,66 +569,6 @@ class _IngredientInsightModalState extends State<IngredientInsightModal>
       ),
     );
   }
-
-  void _showMoreOptions() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text('More about ${widget.ingredient}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.restaurant_menu, color: Colors.blue),
-              title: const Text('Find recipes with this ingredient'),
-              onTap: () {
-                Navigator.pop(context);
-                // Navigate to search with ingredient
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.science, color: Colors.purple),
-              title: const Text('Nutrition facts'),
-              onTap: () {
-                Navigator.pop(context);
-                // Show detailed nutrition
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.swap_horiz, color: Colors.green),
-              title: const Text('More substitutions'),
-              onTap: () {
-                Navigator.pop(context);
-                // Load more substitutions
-                _loadMoreSubstitutions();
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _loadMoreSubstitutions() {
-    // In a real implementation, this would make another API call
-    // for more substitution options
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('More substitutions feature coming soon!'),
-        backgroundColor: Colors.blue,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
 }
 
 // Helper function to show the ingredient insight modal
@@ -625,7 +578,6 @@ void showIngredientInsight({
   required String recipeTitle,
   String? recipeCategory,
   Function(String)? onReplaceIngredient,
-  Function(String)? onAddToGroceryList,
 }) {
   showGeneralDialog(
     context: context,
@@ -639,7 +591,6 @@ void showIngredientInsight({
         recipeTitle: recipeTitle,
         recipeCategory: recipeCategory,
         onReplaceIngredient: onReplaceIngredient,
-        onAddToGroceryList: onAddToGroceryList,
         onClose: () => Navigator.of(context).pop(),
       );
     },

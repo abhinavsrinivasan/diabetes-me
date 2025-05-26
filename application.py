@@ -31,6 +31,7 @@ recipes = [
         "sugar": 5,
         "calories": 180,
         "category": "Lunch",
+        "cuisine": "Italian",
         "glycemic_index": 35,
         "ingredients": ["Zucchini", "Pesto", "Olive oil", "Parmesan"],
         "instructions": [
@@ -48,6 +49,7 @@ recipes = [
         "sugar": 2,
         "calories": 220,
         "category": "Dinner",
+        "cuisine": "Mediterranean",
         "glycemic_index": 45,
         "ingredients": ["Chicken breast", "Lettuce", "Tomatoes", "Cucumber", "Balsamic dressing"],
         "instructions": [
@@ -65,6 +67,7 @@ recipes = [
         "sugar": 8,
         "calories": 150,
         "category": "Breakfast",
+        "cuisine": "American",
         "glycemic_index": 40,
         "ingredients": ["Greek yogurt", "Strawberries", "Blueberries", "Chia seeds", "Honey"],
         "instructions": [
@@ -82,6 +85,7 @@ recipes = [
         "sugar": 1,
         "calories": 130,
         "category": "Snacks",
+        "cuisine": "Mediterranean",
         "glycemic_index": 28,
         "ingredients": ["Canned chickpeas", "Olive oil", "Paprika", "Garlic powder", "Salt"],
         "instructions": [
@@ -99,6 +103,7 @@ recipes = [
         "sugar": 4,
         "calories": 160,
         "category": "Dessert",
+        "cuisine": "Mediterranean",
         "glycemic_index": 36,
         "ingredients": ["Greek yogurt", "Almonds", "Walnuts", "Honey"],
         "instructions": [
@@ -116,6 +121,7 @@ recipes = [
         "sugar": 3,
         "calories": 140,
         "category": "Lunch",
+        "cuisine": "Asian",
         "glycemic_index": 32,
         "ingredients": ["Cauliflower", "Bell peppers", "Onions", "Garlic", "Olive oil"],
         "instructions": [
@@ -133,6 +139,7 @@ recipes = [
         "sugar": 2,
         "calories": 250,
         "category": "Breakfast",
+        "cuisine": "American",
         "glycemic_index": 43,
         "ingredients": ["Whole grain bread", "Avocado", "Lime", "Salt", "Pepper"],
         "instructions": [
@@ -150,6 +157,7 @@ recipes = [
         "sugar": 6,
         "calories": 320,
         "category": "Dinner",
+        "cuisine": "American",
         "glycemic_index": 38,
         "ingredients": ["Salmon fillet", "Broccoli", "Carrots", "Olive oil", "Lemon"],
         "instructions": [
