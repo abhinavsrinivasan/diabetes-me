@@ -1,6 +1,8 @@
 import 'widgets/ingredient_insight_modal.dart';
+import 'services/grocery_list_service.dart';
 import 'package:flutter/material.dart';
 import 'features/recipes/models/recipe.dart';
+import 'services/grocery_list_service.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
@@ -110,11 +112,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           }
         });
       },
-      onAddToGroceryList: (ingredientToAdd) {
-        // Handle adding to grocery list
-        // This could integrate with a grocery list feature
-      },
     );
+  }
+
+  Future<void> _addToGroceryList(String ingredient) async {
+    await GroceryListService.addToGroceryList(ingredient);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added "$ingredient" to grocery list!'),
+          backgroundColor: Colors.green[600],
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
   }
 
   @override
@@ -175,15 +189,41 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   bottomLeft: Radius.circular(24),
                   bottomRight: Radius.circular(24),
                 ),
-                child: Image.network(
-                  widget.recipe.image,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(Icons.image_not_supported, size: 60, color: Colors.grey),
+                child: Stack(
+                  children: [
+                    Image.network(
+                      widget.recipe.image,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: Colors.grey[300],
+                        child: const Center(
+                          child: Icon(Icons.image_not_supported, size: 60, color: Colors.grey),
+                        ),
+                      ),
                     ),
-                  ),
+                    // Cuisine badge
+                    Positioned(
+                      top: 80,
+                      left: 16,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          widget.recipe.cuisine,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -583,7 +623,31 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 
                 const SizedBox(width: 8),
                 
-                // Subtle tap indicator
+                // Grocery list button
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.add_shopping_cart,
+                      size: 20,
+                      color: Colors.green[600],
+                    ),
+                    onPressed: () => _addToGroceryList(ingredient['name']),
+                    tooltip: 'Add to grocery list',
+                    constraints: const BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 40,
+                    ),
+                    padding: const EdgeInsets.all(8),
+                  ),
+                ),
+                
+                const SizedBox(width: 4),
+                
+                // Insight indicator
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
