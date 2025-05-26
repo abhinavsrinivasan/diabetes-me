@@ -4,6 +4,7 @@ import 'features/recipes/models/recipe.dart';
 import 'recipedetail.dart';
 import 'recipe_utils.dart';
 import 'grocery_list_screen.dart';
+import 'barcode_scanner_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'services/auth_service.dart';
@@ -157,34 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
             recipe.category.toLowerCase().contains(searchQuery.toLowerCase()) ||
             recipe.cuisine.toLowerCase().contains(searchQuery.toLowerCase());
         
-        // Debug print to help troubleshoot filtering
-        if (kDebugMode) {
-          print('Recipe: ${recipe.title}');
-          print('  Category: ${recipe.category} (selected: $selectedCategory) - Match: $matchCategory');
-          print('  Cuisine: ${recipe.cuisine} (selected: $selectedCuisine) - Match: $matchCuisine');
-          print('  Carbs: ${recipe.carbs} (range: ${carbRange.start}-${carbRange.end}) - Match: $matchCarbs');
-          print('  Sugar: ${recipe.sugar} (range: ${sugarRange.start}-${sugarRange.end}) - Match: $matchSugar');
-          print('  GI: ${recipe.glycemicIndex} (range: ${giRange.start}-${giRange.end}) - Match: $matchGI');
-          print('  Search: "$searchQuery" - Match: $matchSearch');
-          print('  Overall Match: ${matchCategory && matchCuisine && matchCarbs && matchSugar && matchGI && matchSearch}');
-          print('---');
-        }
-        
         return matchCategory && matchCuisine && matchCarbs && matchSugar && matchGI && matchSearch;
       }).toList();
-      
-      // Debug print final results
-      if (kDebugMode) {
-        print('Total recipes: ${allRecipes.length}');
-        print('Filtered recipes: ${filteredRecipes.length}');
-        print('Active filters:');
-        print('  Category: $selectedCategory');
-        print('  Cuisine: $selectedCuisine');
-        print('  Carbs: ${carbRange.start}-${carbRange.end}');
-        print('  Sugar: ${sugarRange.start}-${sugarRange.end}');
-        print('  GI: ${giRange.start}-${giRange.end}');
-        print('  Search: "$searchQuery"');
-      }
     });
   }
 
@@ -653,6 +628,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     children: [
                       IconButton(
+                        icon: const Icon(Icons.qr_code_scanner, color: Colors.deepPurple),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+                          );
+                        },
+                        tooltip: 'Scan Barcode',
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.shopping_cart_outlined, color: Colors.deepPurple),
                         onPressed: () {
                           Navigator.push(
@@ -1039,6 +1024,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 10),
       ],
-    );
+      );
   }
 }
