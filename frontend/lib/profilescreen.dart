@@ -49,7 +49,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   late Animation<double> _progressAnimation;
   late TabController _tabController;
 
-  final baseUrl = kIsWeb ? 'http://127.0.0.1:5000' : 'http://10.0.2.2:5000';
+  final String baseUrl = kIsWeb 
+    ? 'http://127.0.0.1:5001' 
+    : Platform.isIOS
+        ? 'http://192.168.1.248:5001'
+        : 'http://10.0.2.2:5001';
 
   @override
   void initState() {

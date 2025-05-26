@@ -2,10 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 
 class AuthService {
   // Use localhost for web, 10.0.2.2 for Android emulator
-  static final String _baseUrl = kIsWeb ? 'http://127.0.0.1:5000' : 'http://10.0.2.2:5000';
+  static final String _baseUrl = kIsWeb 
+      ? 'http://127.0.0.1:5001' 
+      : Platform.isIOS
+          ? 'http://192.168.1.248:5001'
+          : 'http://10.0.2.2:5001';
   final _storage = const FlutterSecureStorage();
 
   Future<bool> signup(String email, String password, {String? name}) async {
