@@ -13,7 +13,7 @@ CORS(app, origins=["http://localhost:*", "http://127.0.0.1:*"],
 
 
 # === Security Config ===
-app.config['JWT_SECRET_KEY'] = 'super-secret-key  # Use environment variable in production
+app.config['JWT_SECRET_KEY'] = 'super-secret-key'  # Use environment variable in production
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 
 bcrypt = Bcrypt(app)
