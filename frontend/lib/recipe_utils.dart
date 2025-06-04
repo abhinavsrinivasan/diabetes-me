@@ -5,10 +5,15 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'features/recipes/models/recipe.dart';
 import 'services/auth_service.dart';
+import 'dart:io' show Platform;
 
 class RecipeUtils {
- 
-static final String baseUrl = kIsWeb ? 'http://127.0.0.1:5001' : 'http://10.0.2.2:5001';
+  // Fixed: Use consistent port 5001 across all platforms
+  static final String baseUrl = kIsWeb 
+    ? 'http://127.0.0.1:5001' 
+    : Platform.isIOS
+        ? 'http://192.168.1.248:5001'  // Use your actual IP
+        : 'http://10.0.2.2:5001';      // Android emulator
   
   static Future<String?> _getUserEmail() async {
     final token = await AuthService().getToken();
@@ -32,6 +37,8 @@ static final String baseUrl = kIsWeb ? 'http://127.0.0.1:5001' : 'http://10.0.2.
     if (token == null) return;
     
     try {
+      debugPrint('Attempting to add nutrition to: $baseUrl/progress');
+      
       final res = await http.post(
         Uri.parse('$baseUrl/progress'),
         headers: {"Content-Type": "application/json", "Authorization": "Bearer $token"},
@@ -39,7 +46,10 @@ static final String baseUrl = kIsWeb ? 'http://127.0.0.1:5001' : 'http://10.0.2.
           'carbs': recipe.carbs,
           'sugar': recipe.sugar,
         }),
-      );
+      ).timeout(const Duration(seconds: 10)); // Add timeout
+      
+      debugPrint('Response status: ${res.statusCode}');
+      debugPrint('Response body: ${res.body}');
       
       if (res.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -51,12 +61,14 @@ static final String baseUrl = kIsWeb ? 'http://127.0.0.1:5001' : 'http://10.0.2.
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
+      } else {
+        throw Exception('Server returned ${res.statusCode}: ${res.body}');
       }
     } catch (e) {
       debugPrint('Error adding recipe nutrition: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text("Failed to add nutrition. Please try again."),
+          content: Text("Failed to add nutrition: ${e.toString().contains('timeout') ? 'Connection timeout' : 'Server error'}"),
           backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

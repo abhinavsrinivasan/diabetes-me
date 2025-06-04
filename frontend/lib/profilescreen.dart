@@ -73,6 +73,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     loadBloodSugarEntries();
   }
 
+  void _dismissKeyboard() {
+    FocusScope.of(context).unfocus();
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -105,11 +109,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   Future<void> _showApiSettings() async {
-  showDialog(
-    context: context,
-    builder: (context) => const ApiSettingsDialog(),
-  );
-}
+    showDialog(
+      context: context,
+      builder: (context) => const ApiSettingsDialog(),
+    );
+  }
 
   Future<void> pickImage() async {
     final picker = ImagePicker();
@@ -168,6 +172,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   Future<void> saveBloodSugarEntry() async {
+    _dismissKeyboard();
+    
     final value = int.tryParse(bloodSugarController.text);
     if (value == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -267,6 +273,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   Future<void> saveGoals() async {
+    _dismissKeyboard();
+    
     final token = await AuthService().getToken();
     final res = await http.post(
       Uri.parse('$baseUrl/goals'),
@@ -309,6 +317,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   Future<void> updateManual(String type, String value) async {
     final parsed = int.tryParse(value);
     if (parsed == null || parsed == 0) return;
+    
+    // Dismiss keyboard first
+    _dismissKeyboard();
+    
     final token = await AuthService().getToken();
     final res = await http.post(
       Uri.parse('$baseUrl/progress'),
@@ -335,6 +347,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   Future<void> saveBio() async {
+    _dismissKeyboard();
+    
     final token = await AuthService().getToken();
     final success = await AuthService().updateProfile({'bio': bioController.text});
     if (success) {
@@ -352,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   Widget buildProgressCard(String label, int progress, int goal, Color color, TextEditingController input, String type, IconData icon) {
     double percent = (goal > 0) ? (progress / goal) : 0.0;
-    double displayPercent = percent.clamp(0.0, 1.0); // For progress bar
+    double displayPercent = percent.clamp(0.0, 1.0);
     String unit = type == 'exercise' ? 'min' : 'g';
     
     return Container(
@@ -440,14 +454,22 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             },
           ),
           const SizedBox(height: 16),
-          // Input Row
+          // Input Row with keyboard fixes
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: input,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                  textInputAction: TextInputAction.done,
                   style: const TextStyle(fontSize: 16),
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty) {
+                      updateManual(type, value);
+                    } else {
+                      _dismissKeyboard();
+                    }
+                  },
                   decoration: InputDecoration(
                     hintText: "Add $unit",
                     filled: true,
@@ -816,8 +838,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 // Blood Sugar Input
                 TextField(
                   controller: bloodSugarController,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                  textInputAction: TextInputAction.done,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  onSubmitted: (_) => _dismissKeyboard(),
                   decoration: InputDecoration(
                     labelText: "Blood Sugar Value",
                     suffixText: "mg/dL",
@@ -936,28 +960,30 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 
                 // Note Field
                 TextField(
-                  controller: noteController,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    labelText: "Note (optional)",
-                    hintText: "e.g., Had oatmeal and berries",
-                    prefixIcon: const Icon(Icons.note_add),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.red[400]!, width: 2),
-                    ),
-                  ),
-                ),
+  controller: noteController,
+  maxLines: 2,
+  textInputAction: TextInputAction.done, // ADD THIS
+  onSubmitted: (_) => _dismissKeyboard(), // ADD THIS
+  decoration: InputDecoration(
+    labelText: "Note (optional)",
+    hintText: "e.g., Had oatmeal and berries",
+    prefixIcon: const Icon(Icons.note_add),
+    filled: true,
+    fillColor: Colors.grey[50],
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: Colors.grey[300]!),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: Colors.red[400]!, width: 2),
+    ),
+  ),
+),
                 const SizedBox(height: 20),
                 
                 // Save Button
@@ -1331,17 +1357,17 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
 
   @override
 Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: const Color(0xFFF8F9FA),
-    body: profile.isEmpty
-        ? const Center(child: CircularProgressIndicator())
-        : DefaultTabController(
-            length: 3,
-            child: NestedScrollView(
+  return GestureDetector(
+    onTap: _dismissKeyboard, // Dismiss keyboard when tapping outside
+    child: Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: profile.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : NestedScrollView(
               headerSliverBuilder: (context, innerBoxIsScrolled) {
                 return [
                   SliverAppBar(
-                    expandedHeight: 280, // Reduced from 320
+                    expandedHeight: 320,
                     floating: false,
                     pinned: true,
                     backgroundColor: Colors.white,
@@ -1363,161 +1389,150 @@ Widget build(BuildContext context) {
                       ),
                     ],
                     flexibleSpace: FlexibleSpaceBar(
-                      background: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.deepPurple.shade50,
-                              Colors.white,
-                            ],
-                          ),
-                        ),
-                        child: SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 50), // Reduced padding
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min, // Important: Use min size
-                              children: [
-                                const Spacer(flex: 1), // Use spacers for better distribution
-                                
-                                // Profile Picture
-                                GestureDetector(
-                                  onTap: pickImage,
-                                  child: Container(
-                                    width: 80, // Slightly smaller
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade600],
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.deepPurple.withOpacity(0.3),
-                                          blurRadius: 15,
-                                          offset: const Offset(0, 8),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ClipOval(
-                                      child: imageUrl != null
-                                          ? (kIsWeb
-                                              ? (imageUrl!.startsWith('data:') || imageUrl!.length > 200
-                                                  ? Image.memory(base64Decode(imageUrl!), fit: BoxFit.cover)
-                                                  : const Icon(Icons.person, size: 40, color: Colors.white))
-                                              : Image.file(File(imageUrl!), fit: BoxFit.cover))
-                                          : const Icon(Icons.person, size: 40, color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                                
-                                const SizedBox(height: 8),
-                                Text(
-                                  "Tap to change photo",
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                ),
-                                
-                                const SizedBox(height: 12),
-                                
-                                // Name
-                                Text(
-                                  profile['name'] ?? 'User',
-                                  style: const TextStyle(
-                                    fontSize: 20, // Slightly smaller
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                
-                                const SizedBox(height: 8),
-                                
-                                // Bio Section - Simplified
-                                Container(
-                                  constraints: const BoxConstraints(maxWidth: 280),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Flexible(
-                                        child: isEditingBio
-                                            ? SizedBox(
-                                                height: 35, // Fixed height
-                                                child: TextField(
-                                                  controller: bioController,
-                                                  textAlign: TextAlign.center,
-                                                  style: const TextStyle(fontSize: 12),
-                                                  maxLines: 1, // Single line only
-                                                  decoration: InputDecoration(
-                                                    hintText: "Add a bio...",
-                                                    filled: true,
-                                                    fillColor: Colors.white,
-                                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                    border: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(12),
-                                                      borderSide: BorderSide(color: Colors.grey[300]!),
-                                                    ),
-                                                  ),
-                                                ),
-                                              )
-                                            : Text(
-                                                bioController.text.isNotEmpty ? bioController.text : "Add a bio...",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: bioController.text.isNotEmpty ? Colors.black87 : Colors.grey[500],
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      IconButton(
-                                        icon: Icon(
-                                          isEditingBio ? Icons.check_circle : Icons.edit,
-                                          color: Colors.deepPurple,
-                                          size: 18,
-                                        ),
-                                        onPressed: () {
-                                          if (isEditingBio) {
-                                            saveBio();
-                                          } else {
-                                            setState(() => isEditingBio = true);
-                                          }
-                                        },
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(
-                                          minWidth: 30,
-                                          minHeight: 30,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                
-                                const Spacer(flex: 1),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+  background: Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.deepPurple.shade50,
+          Colors.white,
+        ],
+      ),
+    ),
+    child: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 60), // Add padding for tab bar
+        child: SingleChildScrollView( // ADD THIS to prevent overflow
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min, // ADD THIS
+            children: [
+              const SizedBox(height: 20),
+              // Profile Picture
+              GestureDetector(
+                onTap: pickImage,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade600],
                     ),
-                    bottom: const TabBar(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.deepPurple.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: imageUrl != null
+                        ? (kIsWeb
+                            ? (imageUrl!.startsWith('data:') || imageUrl!.length > 200
+                                ? Image.memory(base64Decode(imageUrl!), fit: BoxFit.cover)
+                                : const Icon(Icons.person, size: 50, color: Colors.white))
+                            : Image.file(File(imageUrl!), fit: BoxFit.cover))
+                        : const Icon(Icons.person, size: 50, color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "Tap to change photo",
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 16),
+              // Name
+              Text(
+                profile['name'] ?? 'User',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Bio Section
+              Container(
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: isEditingBio
+                          ? TextField(
+                              controller: bioController,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14),
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => saveBio(),
+                              decoration: InputDecoration(
+                                hintText: "Add a bio...",
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                              ),
+                            )
+                          : Text(
+                              bioController.text.isNotEmpty ? bioController.text : "Add a bio...",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: bioController.text.isNotEmpty ? Colors.black87 : Colors.grey[500],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(
+                        isEditingBio ? Icons.check_circle : Icons.edit,
+                        color: Colors.deepPurple,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        if (isEditingBio) {
+                          saveBio();
+                        } else {
+                          setState(() => isEditingBio = true);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8), // Reduced from 12 to save space
+            ],
+          ),
+        ),
+      ),
+    ),
+  ),
+),
+                    bottom: TabBar(
+                      controller: _tabController,
                       labelColor: Colors.deepPurple,
                       unselectedLabelColor: Colors.grey,
                       indicatorColor: Colors.deepPurple,
-                      tabs: [
-                        Tab(text: "Goals", icon: Icon(Icons.track_changes, size: 20)),
-                        Tab(text: "Favorites", icon: Icon(Icons.favorite, size: 20)),
-                        Tab(text: "Blood Sugar", icon: Icon(Icons.water_drop, size: 20)),
+                      tabs: const [
+                        Tab(text: "Daily Goals", icon: Icon(Icons.track_changes)),
+                        Tab(text: "Favorites", icon: Icon(Icons.favorite)),
+                        Tab(text: "Blood Sugar", icon: Icon(Icons.water_drop)),
                       ],
                     ),
                   ),
                 ];
               },
               body: TabBarView(
+                controller: _tabController,
                 children: [
                   _buildDailyGoalsTab(),
                   _buildFavoritesTab(),
@@ -1525,7 +1540,7 @@ Widget build(BuildContext context) {
                 ],
               ),
             ),
-          ),
+    ),
   );
 }
 
