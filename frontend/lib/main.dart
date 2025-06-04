@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'homescreen.dart';
+import 'homescreen_enhanced.dart'; // ✅ Updated import
 import 'profilescreen.dart';
 import 'grocery_list_screen.dart';
 import 'barcode_scanner_screen.dart';
@@ -82,11 +82,9 @@ class AuthWrapper extends StatelessWidget {
               ),
             ),
           );
-        } 
-        
-        // Check if we have a valid token
+        }
+
         if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
-          // Verify token is valid by testing the profile endpoint
           return FutureBuilder<Map<String, dynamic>?>(
             future: AuthService().getProfile(),
             builder: (context, profileSnapshot) {
@@ -104,19 +102,16 @@ class AuthWrapper extends StatelessWidget {
                   ),
                 );
               }
-              
-              // If profile fetch succeeds, user is authenticated
+
               if (profileSnapshot.hasData && profileSnapshot.data != null) {
                 return const MainAppScaffold();
               } else {
-                // Token is invalid, clear it and show login
                 AuthService().logout();
                 return const LoginScreen();
               }
             },
           );
         } else {
-          // No token, show login screen
           return const LoginScreen();
         }
       },
@@ -135,7 +130,7 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
   int _currentIndex = 0;
 
   final List<Widget> _tabs = [
-    HomeScreen(),
+    EnhancedHomeScreen(), // ✅ Updated to use enhanced screen
     const GroceryListScreen(),
     const BarcodeScannerScreen(),
     const ProfileScreen(),
@@ -154,24 +149,24 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined), 
-            selectedIcon: Icon(Icons.home), 
-            label: 'Home'
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.shopping_cart_outlined), 
-            selectedIcon: Icon(Icons.shopping_cart), 
-            label: 'Grocery List'
+            icon: Icon(Icons.shopping_cart_outlined),
+            selectedIcon: Icon(Icons.shopping_cart),
+            label: 'Grocery List',
           ),
           NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner_outlined), 
-            selectedIcon: Icon(Icons.qr_code_scanner), 
-            label: 'Scanner'
+            icon: Icon(Icons.qr_code_scanner_outlined),
+            selectedIcon: Icon(Icons.qr_code_scanner),
+            label: 'Scanner',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline), 
-            selectedIcon: Icon(Icons.person), 
-            label: 'Profile'
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),

@@ -57,7 +57,7 @@ class IngredientIntelligenceService {
   
   // HARDCODED API KEY FOR DEVELOPMENT - REMOVE IN PRODUCTION!
   static const String _hardcodedApiKey = "OPENAI_API_KEY"; // Replace with your actual key
-  OPENAI_API_KEY
+
   // Cache for API responses to save costs and improve performance
   static final Map<String, IngredientInsight> _cache = {};
   
