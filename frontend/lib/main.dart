@@ -8,11 +8,8 @@ import 'features/auth/screens/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'config/env_config.dart';
 
-void main() => runApp(const DiabetesMeApp());
-
-class DiabetesMeApp extends StatelessWidget {
-  const DiabetesMeApp({super.key});
-
+void main() {
+  // Move the validation here, inside a function
   try {
     EnvConfig.validateApiKeys();
     EnvConfig.printDebugInfo();
@@ -21,6 +18,12 @@ class DiabetesMeApp extends StatelessWidget {
     // In development, you might want to show an error dialog
     // In production, you might want to disable certain features
   }
+  
+  runApp(const DiabetesMeApp());
+}
+
+class DiabetesMeApp extends StatelessWidget {
+  const DiabetesMeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
