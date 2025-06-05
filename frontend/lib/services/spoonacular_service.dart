@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../features/recipes/models/recipe.dart';
+import '../config/env_config.dart';
 
 // Custom exceptions for better error handling
 enum SpoonacularError {
@@ -37,19 +38,10 @@ class CacheEntry {
 }
 
 class SpoonacularService {
-  static const String _baseUrl = 'https://api.spoonacular.com';
-  
-  // Get API key from environment or fallback
   static String get _apiKey {
-    const apiKey = String.fromEnvironment('SPOONACULAR_API_KEY');
-    if (apiKey.isNotEmpty) return apiKey;
-    
-    // Fallback key (replace with your actual key)
-    const fallbackKey = 'dd6b4d10cbf0480c8c0e6fc7f5e9a317';
-    if (fallbackKey.isEmpty || fallbackKey == 'your-api-key-here') {
-      throw Exception('SPOONACULAR_API_KEY not configured');
-    }
-    return fallbackKey;
+    // Validate on first use
+    EnvConfig.validateApiKeys();
+    return EnvConfig.spoonacularApiKey;
   }
   
   // Rate limiting
@@ -286,7 +278,6 @@ class SpoonacularService {
       calories: nutrition['calories']?.round() ?? 0,
       category: category,
       cuisine: cuisine,
-      glycemicIndex: 0, // Removed GI calculation
       ingredients: ingredients,
       instructions: instructions,
     );

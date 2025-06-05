@@ -6,11 +6,21 @@ import 'barcode_scanner_screen.dart';
 import 'services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'config/env_config.dart';
 
 void main() => runApp(const DiabetesMeApp());
 
 class DiabetesMeApp extends StatelessWidget {
   const DiabetesMeApp({super.key});
+
+  try {
+    EnvConfig.validateApiKeys();
+    EnvConfig.printDebugInfo();
+  } catch (e) {
+    print('❌ Environment Error: $e');
+    // In development, you might want to show an error dialog
+    // In production, you might want to disable certain features
+  }
 
   @override
   Widget build(BuildContext context) {

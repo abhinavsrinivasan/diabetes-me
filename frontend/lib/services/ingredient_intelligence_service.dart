@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config/env_config.dart';
 
 class IngredientInsight {
   final String ingredient;
@@ -53,26 +54,24 @@ class IngredientSubstitute {
 }
 
 class IngredientIntelligenceService {
-  static const String _openAIUrl = 'https://api.openai.com/v1/chat/completions';
-  static const _storage = FlutterSecureStorage();
-  
-  // In-memory cache for insights
-  static final Map<String, IngredientInsight> _cache = {};
-  
-  // Get API key from secure storage or environment
+  // Replace the existing _getOpenAIApiKey method
   static Future<String?> _getOpenAIApiKey() async {
-    // Try secure storage first
-    String? apiKey = await _storage.read(key: 'openai_api_key');
-    
-    // Fallback to environment variable (for development)
-    if (apiKey?.isEmpty ?? true) {
-      apiKey = const String.fromEnvironment('OPENAI_API_KEY');
+    // First check dart-define environment variable
+    if (EnvConfig.hasOpenAIKey) {
+      return EnvConfig.openaiApiKey;
     }
     
+    // Fallback to secure storage
+    String? apiKey = await _storage.read(key: 'openai_api_key');
     return apiKey?.isNotEmpty == true ? apiKey : null;
   }
   
+  // Update the hasOpenAIApiKey method
   static Future<bool> hasOpenAIApiKey() async {
+    // Check dart-define first
+    if (EnvConfig.hasOpenAIKey) return true;
+    
+    // Check secure storage
     final apiKey = await _getOpenAIApiKey();
     return apiKey != null && apiKey.startsWith('sk-');
   }

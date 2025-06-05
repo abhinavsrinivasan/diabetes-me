@@ -35,6 +35,11 @@ android/.idea/
 # Environment files
 .env
 .env.*
+.env.local
+.env.*.local
+
+*.key
+secrets/
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*

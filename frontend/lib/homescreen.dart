@@ -29,7 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
   // Range filters
   RangeValues carbRange = const RangeValues(0, 100);
   RangeValues sugarRange = const RangeValues(0, 50);
-  RangeValues giRange = const RangeValues(0, 100);
 
   // Backend URL
   final String baseUrl = kIsWeb 
@@ -154,8 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
         // Sugar filter
         final matchSugar = recipe.sugar >= sugarRange.start && recipe.sugar <= sugarRange.end;
         
-        // Glycemic Index filter
-        final matchGI = recipe.glycemicIndex >= giRange.start && recipe.glycemicIndex <= giRange.end;
         
         // Search query filter
         final matchSearch = searchQuery.isEmpty || 
@@ -163,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
             recipe.category.toLowerCase().contains(searchQuery.toLowerCase()) ||
             recipe.cuisine.toLowerCase().contains(searchQuery.toLowerCase());
         
-        return matchCategory && matchCuisine && matchCarbs && matchSugar && matchGI && matchSearch;
+        return matchCategory && matchCuisine && matchCarbs && matchSugar && matchSearch;
       }).toList();
     });
   }
