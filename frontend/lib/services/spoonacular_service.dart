@@ -1,5 +1,7 @@
-// lib/services/spoonacular_service.dart
+// Spoonacular API Service with enhanced features
+// This service provides methods to interact with the Spoonacular API for diabetes-friendly recipes.
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../features/recipes/models/recipe.dart';
@@ -37,53 +39,44 @@ class CacheEntry {
 class SpoonacularService {
   static const String _baseUrl = 'https://api.spoonacular.com';
   
-  // API Key management - prioritize environment variable
+  // Get API key from environment or fallback
   static String get _apiKey {
     const apiKey = String.fromEnvironment('SPOONACULAR_API_KEY');
-    if (apiKey.isNotEmpty) {
-      return apiKey;
-    }
+    if (apiKey.isNotEmpty) return apiKey;
     
-    // Fallback to hardcoded key for development (replace with your actual key)
+    // Fallback key (replace with your actual key)
     const fallbackKey = 'dd6b4d10cbf0480c8c0e6fc7f5e9a317';
     if (fallbackKey.isEmpty || fallbackKey == 'your-api-key-here') {
-      throw Exception('SPOONACULAR_API_KEY not configured. Please set environment variable or update fallback key.');
+      throw Exception('SPOONACULAR_API_KEY not configured');
     }
-    
     return fallbackKey;
   }
   
-  // Rate limiting properties
+  // Rate limiting
   static DateTime? _lastRequestTime;
-  static const Duration _minRequestInterval = Duration(milliseconds: 100); // 10 requests/second max
   static int _requestCount = 0;
   static DateTime _windowStart = DateTime.now();
-  static const int _maxRequestsPerHour = 150; // Spoonacular free tier limit
+  static const int _maxRequestsPerHour = 150;
+  static const Duration _minRequestInterval = Duration(milliseconds: 100);
   
-  // Caching
+  // Enhanced caching with TTL
   static final Map<String, CacheEntry> _recipeCache = {};
-  static const Duration _cacheExpiry = Duration(hours: 1);
   
-  // Rate limiting check
   static Future<void> _checkRateLimit() async {
     final now = DateTime.now();
     
-    // Reset hourly counter if needed
     if (now.difference(_windowStart).inHours >= 1) {
       _requestCount = 0;
       _windowStart = now;
-      debugPrint('Spoonacular rate limit counter reset');
     }
     
-    // Check hourly limit
     if (_requestCount >= _maxRequestsPerHour) {
       throw SpoonacularException(
         SpoonacularError.quotaExceeded,
-        'Spoonacular API hourly limit reached ($_maxRequestsPerHour requests). Please try again later.',
+        'Spoonacular API hourly limit reached',
       );
     }
     
-    // Check request interval
     if (_lastRequestTime != null) {
       final timeSinceLastRequest = now.difference(_lastRequestTime!);
       if (timeSinceLastRequest < _minRequestInterval) {
@@ -93,11 +86,470 @@ class SpoonacularService {
     
     _lastRequestTime = DateTime.now();
     _requestCount++;
-    
-    debugPrint('Spoonacular API call #$_requestCount this hour');
   }
 
-  // Enhanced error handling
+  /// Search for diabetes-friendly recipes with enhanced filtering
+  static Future<List<Recipe>> searchRecipes({
+    String? query,
+    String? diet,
+    String? mealType,
+    int maxCarbs = 30,
+    int maxSugar = 15,
+    int number = 20,
+    int offset = 0,
+  }) async {
+    try {
+      await _checkRateLimit();
+
+      final queryParams = {
+        'apiKey': _apiKey,
+        'query': query ?? '',
+        'type': mealType ?? '',
+        'diet': diet ?? 'diabetic',
+        'maxCarbs': maxCarbs.toString(),
+        'maxSugar': maxSugar.toString(),
+        'minFiber': '3',
+        'number': number.toString(),
+        'offset': offset.toString(),
+        'addRecipeInformation': 'true',
+        'fillIngredients': 'true',
+        'addRecipeNutrition': 'true',
+        'instructionsRequired': 'true',
+        'sort': 'healthiness',
+        'sortDirection': 'desc',
+      };
+
+      final uri = Uri.parse('$_baseUrl/recipes/complexSearch')
+          .replace(queryParameters: queryParams);
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> results = data['results'] ?? [];
+        
+        final recipes = <Recipe>[];
+        for (final recipeData in results) {
+          try {
+            final recipe = _convertAndCleanSpoonacularRecipe(recipeData);
+            if (_isHighQualityRecipe(recipe)) {
+              recipes.add(recipe);
+            }
+          } catch (e) {
+            debugPrint('Skipping recipe due to processing error: $e');
+            continue;
+          }
+        }
+        
+        return recipes;
+      } else {
+        throw _handleApiError(response.statusCode, response.body);
+      }
+    } catch (e) {
+      debugPrint('Error searching recipes: $e');
+      rethrow;
+    }
+  }
+
+  /// Get diabetes-friendly recipes
+  static Future<List<Recipe>> getDiabeticFriendlyRecipes({
+    String? category,
+    int number = 50,
+  }) async {
+    final List<Recipe> allRecipes = [];
+    
+    final searchTerms = [
+      'low carb breakfast',
+      'diabetic lunch', 
+      'sugar free dessert',
+      'high fiber dinner',
+      'diabetic snacks',
+      'low glycemic',
+      'whole grain',
+      'lean protein',
+    ];
+    
+    for (final term in searchTerms) {
+      try {
+        final recipes = await searchRecipes(
+          query: term,
+          number: (number / searchTerms.length).ceil(),
+        );
+        allRecipes.addAll(recipes);
+        
+        await Future.delayed(const Duration(milliseconds: 200));
+      } catch (e) {
+        debugPrint('Error fetching recipes for "$term": $e');
+        continue;
+      }
+    }
+    
+    final uniqueRecipes = _removeDuplicateRecipes(allRecipes);
+    uniqueRecipes.shuffle();
+    return uniqueRecipes.take(number).toList();
+  }
+
+  /// Search by ingredients
+  static Future<List<Recipe>> searchByIngredients(List<String> ingredients) async {
+    try {
+      await _checkRateLimit();
+
+      final ingredientsString = ingredients.join(',+');
+      
+      final uri = Uri.parse('$_baseUrl/recipes/findByIngredients')
+          .replace(queryParameters: {
+        'apiKey': _apiKey,
+        'ingredients': ingredientsString,
+        'number': '20',
+        'ranking': '2',
+        'ignorePantry': 'false',
+      });
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        
+        List<Recipe> recipes = [];
+        for (var item in data.take(10)) {
+          try {
+            final recipe = await getRecipeDetails(item['id']);
+            if (recipe != null) {
+              recipes.add(recipe);
+            }
+          } catch (e) {
+            debugPrint('Skipping recipe ${item['id']} due to error: $e');
+            continue;
+          }
+        }
+        
+        return recipes;
+      } else {
+        throw _handleApiError(response.statusCode, response.body);
+      }
+    } catch (e) {
+      debugPrint('Error searching by ingredients: $e');
+      return [];
+    }
+  }
+
+  /// Get detailed recipe information
+  static Future<Recipe?> getRecipeDetails(int spoonacularId) async {
+    try {
+      await _checkRateLimit();
+
+      final uri = Uri.parse('$_baseUrl/recipes/$spoonacularId/information')
+          .replace(queryParameters: {
+        'apiKey': _apiKey,
+        'includeNutrition': 'true',
+      });
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return _convertAndCleanSpoonacularRecipe(data);
+      } else {
+        debugPrint('Failed to get recipe details: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error getting recipe details: $e');
+      return null;
+    }
+  }
+
+  /// Convert Spoonacular data to cleaned Recipe model
+  static Recipe _convertAndCleanSpoonacularRecipe(Map<String, dynamic> spoonacularData) {
+    // Extract enhanced nutrition information
+    final nutrition = _extractNutritionInfo(spoonacularData);
+    
+    // Clean and standardize ingredients
+    final ingredients = _cleanIngredients(spoonacularData);
+    
+    // Clean and improve instructions
+    final instructions = _cleanInstructions(spoonacularData);
+    
+    // Determine accurate category and cuisine
+    final category = _determineCategory(spoonacularData);
+    final cuisine = _determineCuisine(spoonacularData);
+    
+    // Get high-quality image
+    final imageUrl = _getOptimalImageUrl(spoonacularData);
+    
+    return Recipe(
+      id: spoonacularData['id'] ?? Random().nextInt(999999),
+      title: _cleanTitle(spoonacularData['title'] ?? 'Unknown Recipe'),
+      image: imageUrl,
+      carbs: nutrition['carbs']?.round() ?? 0,
+      sugar: nutrition['sugar']?.round() ?? 0,
+      calories: nutrition['calories']?.round() ?? 0,
+      category: category,
+      cuisine: cuisine,
+      glycemicIndex: 0, // Removed GI calculation
+      ingredients: ingredients,
+      instructions: instructions,
+    );
+  }
+
+  /// Extract comprehensive nutrition information
+  static Map<String, double> _extractNutritionInfo(Map<String, dynamic> data) {
+    final nutrition = <String, double>{
+      'calories': 0.0,
+      'carbs': 0.0,
+      'sugar': 0.0,
+      'fiber': 0.0,
+      'protein': 0.0,
+      'fat': 0.0,
+      'sodium': 0.0,
+    };
+
+    final nutrients = data['nutrition']?['nutrients'] as List<dynamic>? ?? [];
+    for (final nutrient in nutrients) {
+      final name = nutrient['name']?.toString().toLowerCase() ?? '';
+      final amount = (nutrient['amount'] as num?)?.toDouble() ?? 0.0;
+      
+      if (name.contains('calorie')) nutrition['calories'] = amount;
+      else if (name.contains('carbohydrate')) nutrition['carbs'] = amount;
+      else if (name.contains('sugar') && !name.contains('added')) nutrition['sugar'] = amount;
+      else if (name.contains('fiber')) nutrition['fiber'] = amount;
+      else if (name.contains('protein')) nutrition['protein'] = amount;
+      else if (name.contains('fat') && !name.contains('trans')) nutrition['fat'] = amount;
+      else if (name.contains('sodium')) nutrition['sodium'] = amount / 1000;
+    }
+    
+    // Fallback to summary nutrition
+    if (nutrition['calories'] == 0.0) {
+      final summary = data['nutrition'] ?? {};
+      nutrition['calories'] = (summary['calories'] as num?)?.toDouble() ?? 0.0;
+      nutrition['carbs'] = (summary['carbs'] as num?)?.toDouble() ?? 0.0;
+      nutrition['protein'] = (summary['protein'] as num?)?.toDouble() ?? 0.0;
+      nutrition['fat'] = (summary['fat'] as num?)?.toDouble() ?? 0.0;
+    }
+    
+    return nutrition;
+  }
+
+  /// Clean and standardize ingredients
+  static List<String> _cleanIngredients(Map<String, dynamic> data) {
+    final extendedIngredients = data['extendedIngredients'] as List<dynamic>? ?? [];
+    
+    if (extendedIngredients.isEmpty) {
+      final simple = data['ingredients'] as List<dynamic>? ?? [];
+      return simple.map((ing) => _standardizeIngredient(ing.toString())).toList();
+    }
+    
+    final cleanedIngredients = <String>[];
+    
+    for (final ingredient in extendedIngredients) {
+      String name = ingredient['name']?.toString() ?? 
+                   ingredient['original']?.toString() ?? '';
+      
+      if (name.isNotEmpty) {
+        cleanedIngredients.add(_standardizeIngredient(name));
+      }
+    }
+    
+    return cleanedIngredients.isEmpty ? ['No ingredients available'] : cleanedIngredients;
+  }
+
+  /// Standardize ingredient names
+  static String _standardizeIngredient(String ingredient) {
+    String cleaned = ingredient
+        .replaceAll(RegExp(r'\d+[\s]*[\/\d]*[\s]*(cups?|tbsp|tsp|oz|lbs?|grams?|g|kg|ml|l|cloves?|pieces?|slices?)\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\([^)]*\)'), '')
+        .replaceAll(RegExp(r'\b(fresh|frozen|dried|canned|organic|chopped|diced|minced|sliced)\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\b(to taste|as needed|optional|for serving|for garnish)\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'[,\-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    
+    if (cleaned.isNotEmpty) {
+      cleaned = cleaned.split(' ')
+          .where((word) => word.isNotEmpty)
+          .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+          .join(' ');
+    }
+    
+    return cleaned.isEmpty ? ingredient : cleaned;
+  }
+
+  /// Clean instructions
+  static List<String> _cleanInstructions(Map<String, dynamic> data) {
+    final analyzedInstructions = data['analyzedInstructions'] as List<dynamic>? ?? [];
+    
+    if (analyzedInstructions.isEmpty) {
+      final summary = data['summary']?.toString() ?? '';
+      final instructions = data['instructions']?.toString() ?? '';
+      
+      if (instructions.isNotEmpty) {
+        return _parseInstructionsText(instructions);
+      } else if (summary.isNotEmpty) {
+        return _parseInstructionsText(summary);
+      } else {
+        return ['Follow recipe with provided ingredients.'];
+      }
+    }
+    
+    final cleanInstructions = <String>[];
+    
+    for (final instructionGroup in analyzedInstructions) {
+      final steps = instructionGroup['steps'] as List<dynamic>? ?? [];
+      
+      for (final step in steps) {
+        final stepText = step['step']?.toString() ?? '';
+        if (stepText.isNotEmpty) {
+          cleanInstructions.add(_cleanInstructionStep(stepText));
+        }
+      }
+    }
+    
+    return cleanInstructions.isEmpty 
+        ? ['Prepare according to ingredients listed above.']
+        : cleanInstructions;
+  }
+
+  /// Clean individual instruction step
+  static String _cleanInstructionStep(String step) {
+    String cleaned = step
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    
+    if (cleaned.isNotEmpty && 
+        !cleaned.endsWith('.') && 
+        !cleaned.endsWith('!') && 
+        !cleaned.endsWith('?')) {
+      cleaned += '.';
+    }
+    
+    if (cleaned.isNotEmpty) {
+      cleaned = cleaned[0].toUpperCase() + cleaned.substring(1);
+    }
+    
+    return cleaned;
+  }
+
+  /// Parse instructions from text
+  static List<String> _parseInstructionsText(String text) {
+    String cleaned = text
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    
+    final steps = cleaned
+        .split(RegExp(r'[.!]\s+|\d+\.\s+'))
+        .where((step) => step.trim().length > 10)
+        .map((step) => _cleanInstructionStep(step))
+        .toList();
+    
+    return steps.isEmpty ? ['Follow recipe as described.'] : steps;
+  }
+
+  /// Determine category
+  static String _determineCategory(Map<String, dynamic> data) {
+    final dishTypes = (data['dishTypes'] as List<dynamic>? ?? [])
+        .map((type) => type.toString().toLowerCase())
+        .toList();
+    
+    for (final dishType in dishTypes) {
+      if (dishType.contains('breakfast') || dishType.contains('brunch')) return 'Breakfast';
+      if (dishType.contains('lunch') || dishType.contains('main course')) return 'Lunch';
+      if (dishType.contains('dinner') || dishType.contains('supper')) return 'Dinner';
+      if (dishType.contains('snack') || dishType.contains('appetizer')) return 'Snacks';
+      if (dishType.contains('dessert') || dishType.contains('sweet')) return 'Dessert';
+    }
+    
+    final readyInMinutes = data['readyInMinutes'] as int? ?? 30;
+    if (readyInMinutes <= 15) return 'Snacks';
+    if (readyInMinutes <= 30) return 'Breakfast';
+    
+    return 'Lunch';
+  }
+
+  /// Determine cuisine
+  static String _determineCuisine(Map<String, dynamic> data) {
+    final cuisines = (data['cuisines'] as List<dynamic>? ?? [])
+        .map((cuisine) => cuisine.toString())
+        .toList();
+    
+    if (cuisines.isNotEmpty) {
+      return cuisines.first;
+    }
+    
+    final title = data['title']?.toString().toLowerCase() ?? '';
+    if (title.contains('italian') || title.contains('pasta')) return 'Italian';
+    if (title.contains('mexican') || title.contains('taco')) return 'Mexican';
+    if (title.contains('asian') || title.contains('stir fry')) return 'Asian';
+    if (title.contains('mediterranean')) return 'Mediterranean';
+    if (title.contains('indian') || title.contains('curry')) return 'Indian';
+    
+    return 'American';
+  }
+
+  /// Get optimal image URL
+  static String _getOptimalImageUrl(Map<String, dynamic> data) {
+    String imageUrl = data['image']?.toString() ?? '';
+    
+    if (imageUrl.isNotEmpty) {
+      if (!imageUrl.contains('312x231') && !imageUrl.contains('556x370')) {
+        imageUrl = imageUrl.replaceAll(RegExp(r'\d+x\d+'), '556x370');
+      }
+      return imageUrl;
+    }
+    
+    final category = _determineCategory(data).toLowerCase();
+    final placeholders = {
+      'breakfast': 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400&h=400&fit=crop',
+      'lunch': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=400&fit=crop',
+      'dinner': 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=400&fit=crop',
+      'snacks': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=400&fit=crop',
+      'dessert': 'https://images.unsplash.com/photo-1488900128323-21503983a07e?w=400&h=400&fit=crop',
+    };
+    
+    return placeholders[category] ?? 'https://images.unsplash.com/photo-1546548970-71785318a17b?w=400&h=400&fit=crop';
+  }
+
+  /// Clean title
+  static String _cleanTitle(String title) {
+    return title
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'[^\w\s&\-\(\),.]'), '')
+        .trim();
+  }
+
+  /// Check recipe quality
+  static bool _isHighQualityRecipe(Recipe recipe) {
+    if (recipe.calories == 0 && recipe.carbs == 0) return false;
+    if (recipe.ingredients.length < 2 || recipe.ingredients.length > 25) return false;
+    if (recipe.instructions.length < 2 || recipe.instructions.length > 20) return false;
+    if (recipe.carbs > 45 || recipe.sugar > 25) return false;
+    if (recipe.title.length < 5 || recipe.title.toLowerCase().contains('unknown')) return false;
+    
+    return true;
+  }
+
+  /// Remove duplicates
+  static List<Recipe> _removeDuplicateRecipes(List<Recipe> recipes) {
+    final uniqueRecipes = <Recipe>[];
+    final seenTitles = <String>{};
+    
+    for (final recipe in recipes) {
+      final normalizedTitle = recipe.title.toLowerCase()
+          .replaceAll(RegExp(r'[^\w\s]'), '')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      
+      if (!seenTitles.contains(normalizedTitle)) {
+        seenTitles.add(normalizedTitle);
+        uniqueRecipes.add(recipe);
+      }
+    }
+    
+    return uniqueRecipes;
+  }
+
+  // Error handling
   static SpoonacularException _handleApiError(int statusCode, String body) {
     switch (statusCode) {
       case 401:
@@ -118,517 +570,26 @@ class SpoonacularService {
           'Rate limit exceeded. Please wait a moment before making more requests.',
           statusCode,
         );
-      case 403:
-        return SpoonacularException(
-          SpoonacularError.quotaExceeded,
-          'Daily quota exceeded. Please try again tomorrow.',
-          statusCode,
-        );
       default:
         return SpoonacularException(
           SpoonacularError.unknownError,
-          'API request failed with status $statusCode: $body',
+          'API request failed with status $statusCode',
           statusCode,
         );
     }
   }
-
-  // Cache management
-  static String _generateCacheKey(Map<String, dynamic> params) {
-    final sortedKeys = params.keys.toList()..sort();
-    return sortedKeys.map((key) => '$key:${params[key]}').join('|');
-  }
-
-  static List<Recipe>? _getCachedRecipes(String cacheKey) {
-    final entry = _recipeCache[cacheKey];
-    if (entry != null && !entry.isExpired) {
-      debugPrint('Using cached recipes for: $cacheKey');
-      return entry.recipes;
-    }
-    
-    if (entry != null && entry.isExpired) {
-      _recipeCache.remove(cacheKey);
-      debugPrint('Removed expired cache entry: $cacheKey');
-    }
-    
-    return null;
-  }
-
-  static void _cacheRecipes(String cacheKey, List<Recipe> recipes) {
-    _recipeCache[cacheKey] = CacheEntry(recipes, DateTime.now());
-    debugPrint('Cached ${recipes.length} recipes for: $cacheKey');
-    
-    // Clean up old cache entries if we have too many
-    if (_recipeCache.length > 50) {
-      final oldestKey = _recipeCache.entries
-          .reduce((a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b)
-          .key;
-      _recipeCache.remove(oldestKey);
-      debugPrint('Removed oldest cache entry: $oldestKey');
-    }
-  }
-
-  // Search recipes with diabetes-friendly filters
-  static Future<List<Recipe>> searchRecipes({
-    String? query,
-    String? diet,
-    String? intolerances,
-    int maxCarbs = 50,
-    int maxSugar = 20,
-    int number = 20,
-    int offset = 0,
-  }) async {
-    try {
-      // Check cache first
-      final cacheKey = _generateCacheKey({
-        'search': query ?? '',
-        'diet': diet ?? 'diabetic',
-        'maxCarbs': maxCarbs,
-        'maxSugar': maxSugar,
-        'number': number,
-        'offset': offset,
-      });
-      
-      final cachedRecipes = _getCachedRecipes(cacheKey);
-      if (cachedRecipes != null) {
-        return cachedRecipes;
-      }
-
-      await _checkRateLimit();
-
-      final Map<String, dynamic> queryParams = {
-        'apiKey': _apiKey,
-        'query': query ?? '',
-        'diet': diet ?? 'diabetic',
-        'intolerances': intolerances ?? '',
-        'maxCarbs': maxCarbs.toString(),
-        'maxSugar': maxSugar.toString(),
-        'number': number.toString(),
-        'offset': offset.toString(),
-        'addRecipeInformation': 'true',
-        'fillIngredients': 'true',
-        'addRecipeNutrition': 'true',
-        'instructionsRequired': 'true',
-      };
-
-      final uri = Uri.parse('$_baseUrl/recipes/complexSearch')
-          .replace(queryParameters: queryParams);
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> results = data['results'] ?? [];
-        
-        final recipes = results.map((recipeData) => _convertSpoonacularToRecipe(recipeData)).toList();
-        
-        // Cache the results
-        _cacheRecipes(cacheKey, recipes);
-        
-        return recipes;
-      } else {
-        throw _handleApiError(response.statusCode, response.body);
-      }
-    } on SpoonacularException {
-      rethrow;
-    } catch (e) {
-      debugPrint('Error searching recipes: $e');
-      throw SpoonacularException(
-        SpoonacularError.networkError,
-        'Network error: $e',
-      );
-    }
-  }
-
-  // Get detailed recipe information
-  static Future<Recipe?> getRecipeDetails(int spoonacularId) async {
-    try {
-      final cacheKey = _generateCacheKey({'details': spoonacularId});
-      final cachedRecipes = _getCachedRecipes(cacheKey);
-      if (cachedRecipes != null && cachedRecipes.isNotEmpty) {
-        return cachedRecipes.first;
-      }
-
-      await _checkRateLimit();
-
-      final uri = Uri.parse('$_baseUrl/recipes/$spoonacularId/information')
-          .replace(queryParameters: {
-        'apiKey': _apiKey,
-        'includeNutrition': 'true',
-      });
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final recipe = _convertSpoonacularToRecipe(data);
-        
-        // Cache single recipe
-        _cacheRecipes(cacheKey, [recipe]);
-        
-        return recipe;
-      } else {
-        debugPrint('Failed to get recipe details: ${response.statusCode}');
-        return null;
-      }
-    } on SpoonacularException {
-      rethrow;
-    } catch (e) {
-      debugPrint('Error getting recipe details: $e');
-      return null;
-    }
-  }
-
-  // Get recipe suggestions based on dietary restrictions
-  static Future<List<Recipe>> getDiabeticFriendlyRecipes({
-    String category = '',
-    int number = 20,
-  }) async {
-    try {
-      return await searchRecipes(
-        diet: 'diabetic',
-        query: category,
-        maxCarbs: 30,
-        maxSugar: 15,
-        number: number,
-      );
-    } on SpoonacularException {
-      rethrow;
-    } catch (e) {
-      debugPrint('Error getting diabetic-friendly recipes: $e');
-      return [];
-    }
-  }
-
-  // Search recipes by ingredients (for pantry-based cooking)
-  static Future<List<Recipe>> searchByIngredients(List<String> ingredients) async {
-    try {
-      final cacheKey = _generateCacheKey({'ingredients': ingredients.join(',')});
-      final cachedRecipes = _getCachedRecipes(cacheKey);
-      if (cachedRecipes != null) {
-        return cachedRecipes;
-      }
-
-      await _checkRateLimit();
-
-      final ingredientsString = ingredients.join(',+');
-      
-      final uri = Uri.parse('$_baseUrl/recipes/findByIngredients')
-          .replace(queryParameters: {
-        'apiKey': _apiKey,
-        'ingredients': ingredientsString,
-        'number': '20',
-        'ranking': '2', // Maximize used ingredients
-        'ignorePantry': 'false',
-      });
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        
-        // Get full recipe details for each result (limit to avoid too many API calls)
-        List<Recipe> recipes = [];
-        for (var item in data.take(10)) {
-          try {
-            final recipe = await getRecipeDetails(item['id']);
-            if (recipe != null) {
-              recipes.add(recipe);
-            }
-          } catch (e) {
-            debugPrint('Skipping recipe ${item['id']} due to error: $e');
-            continue;
-          }
-        }
-        
-        // Cache the results
-        _cacheRecipes(cacheKey, recipes);
-        
-        return recipes;
-      } else {
-        throw _handleApiError(response.statusCode, response.body);
-      }
-    } on SpoonacularException {
-      rethrow;
-    } catch (e) {
-      debugPrint('Error searching by ingredients: $e');
-      return [];
-    }
-  }
-
-  // Get nutritional analysis for a recipe
-  static Future<Map<String, dynamic>?> getRecipeNutrition(int spoonacularId) async {
-    try {
-      await _checkRateLimit();
-
-      final uri = Uri.parse('$_baseUrl/recipes/$spoonacularId/nutritionWidget.json')
-          .replace(queryParameters: {'apiKey': _apiKey});
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      }
-      return null;
-    } on SpoonacularException {
-      rethrow;
-    } catch (e) {
-      debugPrint('Error getting nutrition data: $e');
-      return null;
-    }
-  }
-
-  // Get random diabetes-friendly recipes
-  static Future<List<Recipe>> getRandomDiabeticRecipes({int number = 10}) async {
-    try {
-      final cacheKey = _generateCacheKey({'random': number, 'timestamp': DateTime.now().hour});
-      final cachedRecipes = _getCachedRecipes(cacheKey);
-      if (cachedRecipes != null) {
-        return cachedRecipes;
-      }
-
-      await _checkRateLimit();
-
-      final uri = Uri.parse('$_baseUrl/recipes/random')
-          .replace(queryParameters: {
-        'apiKey': _apiKey,
-        'number': number.toString(),
-        'tags': 'diabetic,healthy,low-carb',
-        'include-nutrition': 'true',
-      });
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> recipesList = data['recipes'] ?? [];
-        
-        final recipes = recipesList.map((recipeData) => _convertSpoonacularToRecipe(recipeData)).toList();
-        
-        // Cache results
-        _cacheRecipes(cacheKey, recipes);
-        
-        return recipes;
-      } else {
-        throw _handleApiError(response.statusCode, response.body);
-      }
-    } on SpoonacularException {
-      rethrow;
-    } catch (e) {
-      debugPrint('Error getting random recipes: $e');
-      return [];
-    }
-  }
-
-  // Search for recipe substitutions
-  static Future<List<Map<String, String>>> getIngredientSubstitutes(String ingredient) async {
-    try {
-      await _checkRateLimit();
-
-      final uri = Uri.parse('$_baseUrl/food/ingredients/substitutes')
-          .replace(queryParameters: {
-        'apiKey': _apiKey,
-        'ingredientName': ingredient,
-      });
-
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final substitutes = data['substitutes'] as List<dynamic>? ?? [];
-        
-        return substitutes.map((sub) => {
-          'name': sub.toString(),
-          'description': 'Substitute for $ingredient',
-        }).cast<Map<String, String>>().toList();
-      }
-      return [];
-    } on SpoonacularException {
-      rethrow;
-    } catch (e) {
-      debugPrint('Error getting substitutes: $e');
-      return [];
-    }
-  }
-
-  // Convert Spoonacular recipe data to your Recipe model
-  static Recipe _convertSpoonacularToRecipe(Map<String, dynamic> spoonacularData) {
-    // Extract nutrition information
-    final nutrition = spoonacularData['nutrition'] ?? {};
-    final nutrients = nutrition['nutrients'] as List<dynamic>? ?? [];
-    
-    // Helper function to find nutrient value
-    double findNutrientValue(String name) {
-      try {
-        final nutrient = nutrients.firstWhere(
-          (n) => n['name'].toString().toLowerCase().contains(name.toLowerCase()),
-          orElse: () => {'amount': 0.0},
-        );
-        return (nutrient['amount'] as num?)?.toDouble() ?? 0.0;
-      } catch (e) {
-        return 0.0;
-      }
-    }
-
-    // Calculate glycemic index estimate based on fiber and carbs
-    final carbs = findNutrientValue('carbohydrates');
-    final fiber = findNutrientValue('fiber');
-    final sugar = findNutrientValue('sugar');
-    
-    // Simple GI estimation (this is approximate)
-    int estimatedGI = 55; // Medium GI as default
-    if (fiber > 5 && carbs > 0) {
-      estimatedGI = ((carbs - fiber) / carbs * 70).round().clamp(25, 85);
-    }
-
-    // Extract ingredients
-    final extendedIngredients = spoonacularData['extendedIngredients'] as List<dynamic>? ?? [];
-    final ingredients = extendedIngredients.map((ing) => ing['original'].toString()).toList();
-
-    // Extract instructions
-    final analyzedInstructions = spoonacularData['analyzedInstructions'] as List<dynamic>? ?? [];
-    List<String> instructions = [];
-    
-    if (analyzedInstructions.isNotEmpty) {
-      final steps = analyzedInstructions[0]['steps'] as List<dynamic>? ?? [];
-      instructions = steps.map((step) => step['step'].toString()).toList();
-    }
-
-    // If no analyzed instructions, try the summary or fall back to basic instructions
-    if (instructions.isEmpty) {
-      final summary = spoonacularData['summary']?.toString() ?? '';
-      if (summary.isNotEmpty) {
-        instructions = ['Follow the recipe summary: $summary'];
-      } else {
-        instructions = ['Prepare according to ingredients listed above.'];
-      }
-    }
-
-    // Determine category based on dish types or meal type
-    String category = 'Other';
-    final dishTypes = spoonacularData['dishTypes'] as List<dynamic>? ?? [];
-    if (dishTypes.isNotEmpty) {
-      final dishType = dishTypes.first.toString().toLowerCase();
-      if (dishType.contains('breakfast')) category = 'Breakfast';
-      else if (dishType.contains('lunch') || dishType.contains('main')) category = 'Lunch';
-      else if (dishType.contains('dinner')) category = 'Dinner';
-      else if (dishType.contains('snack') || dishType.contains('appetizer')) category = 'Snacks';
-      else if (dishType.contains('dessert')) category = 'Dessert';
-    }
-
-    // Determine cuisine
-    final cuisines = spoonacularData['cuisines'] as List<dynamic>? ?? [];
-    String cuisine = cuisines.isNotEmpty ? cuisines.first.toString() : 'American';
-
-    // Get image URL
-    String imageUrl = spoonacularData['image'] ?? '';
-    if (imageUrl.isEmpty) {
-      // Fallback to a placeholder image
-      imageUrl = 'https://images.unsplash.com/photo-1546548970-71785318a17b?w=400&h=400&fit=crop';
-    }
-
-    return Recipe(
-      id: spoonacularData['id'] ?? 0,
-      title: spoonacularData['title'] ?? 'Unknown Recipe',
-      image: imageUrl,
-      carbs: carbs.round(),
-      sugar: sugar.round(),
-      calories: findNutrientValue('calories').round(),
-      category: category,
-      cuisine: cuisine,
-      glycemicIndex: estimatedGI,
-      ingredients: ingredients.isNotEmpty ? ingredients : ['No ingredients available'],
-      instructions: instructions,
-    );
-  }
-
-  // Analyze recipe for diabetes-friendliness
-  static Future<Map<String, dynamic>> analyzeDiabetesFriendliness(Recipe recipe) async {
-    // This is a local analysis since Spoonacular doesn't have a specific diabetes API
-    int score = 100;
-    List<String> pros = [];
-    List<String> cons = [];
-    
-    // Analyze carbs
-    if (recipe.carbs <= 15) {
-      pros.add('Low carbohydrate content (${recipe.carbs}g)');
-      score += 10;
-    } else if (recipe.carbs <= 30) {
-      pros.add('Moderate carbohydrate content (${recipe.carbs}g)');
-    } else {
-      cons.add('High carbohydrate content (${recipe.carbs}g)');
-      score -= 20;
-    }
-    
-    // Analyze sugar
-    if (recipe.sugar <= 5) {
-      pros.add('Low sugar content (${recipe.sugar}g)');
-      score += 10;
-    } else if (recipe.sugar <= 15) {
-      pros.add('Moderate sugar content (${recipe.sugar}g)');
-    } else {
-      cons.add('High sugar content (${recipe.sugar}g)');
-      score -= 25;
-    }
-    
-    // Analyze glycemic index
-    if (recipe.glycemicIndex <= 55) {
-      pros.add('Low to medium glycemic index (${recipe.glycemicIndex})');
-      score += 5;
-    } else {
-      cons.add('High glycemic index (${recipe.glycemicIndex})');
-      score -= 15;
-    }
-    
-    // Check for diabetes-friendly ingredients
-    final friendlyIngredients = ['quinoa', 'brown rice', 'oats', 'sweet potato', 
-                                'berries', 'nuts', 'seeds', 'olive oil', 'avocado'];
-    final recipeIngredients = recipe.ingredients.join(' ').toLowerCase();
-    
-    for (String ingredient in friendlyIngredients) {
-      if (recipeIngredients.contains(ingredient)) {
-        pros.add('Contains diabetes-friendly ingredient: $ingredient');
-        score += 5;
-      }
-    }
-    
-    score = score.clamp(0, 100);
-    
-    String rating;
-    if (score >= 80) rating = 'Excellent';
-    else if (score >= 60) rating = 'Good';
-    else if (score >= 40) rating = 'Fair';
-    else rating = 'Poor';
-    
-    return {
-      'score': score,
-      'rating': rating,
-      'pros': pros,
-      'cons': cons,
-      'recommendation': score >= 60 
-          ? 'This recipe is suitable for people with diabetes'
-          : 'Consider modifications or eat in smaller portions',
-    };
-  }
-
-  // Utility methods for cache and rate limit management
+  
+  /// Clear cache
   static void clearCache() {
     _recipeCache.clear();
-    debugPrint('Spoonacular recipe cache cleared');
   }
-
+  
+  /// Get API usage statistics
   static Map<String, dynamic> getApiStats() {
     return {
       'requests_this_hour': _requestCount,
       'cache_entries': _recipeCache.length,
       'rate_limit_remaining': _maxRequestsPerHour - _requestCount,
-      'cache_size_mb': (_recipeCache.length * 0.1).toStringAsFixed(2), // Rough estimate
     };
-  }
-
-  static void resetRateLimit() {
-    _requestCount = 0;
-    _windowStart = DateTime.now();
-    debugPrint('Spoonacular rate limit manually reset');
   }
 }
