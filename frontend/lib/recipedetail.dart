@@ -324,7 +324,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'This delicious ${widget.recipe.title.toLowerCase()} is a perfect choice for those managing diabetes. With ${widget.recipe.carbs}g carbs, ${widget.recipe.sugar}g sugar, and a glycemic index of ${widget.recipe.glycemicIndex}, it\'s designed to help maintain stable blood sugar levels while delivering amazing taste.',
+                      'This delicious ${widget.recipe.title.toLowerCase()} is a perfect choice for those managing diabetes. With ${widget.recipe.carbs}g carbs and ${widget.recipe.sugar}g sugar, it\'s designed to help maintain stable blood sugar levels while delivering amazing taste.',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.grey[700],
@@ -336,34 +336,34 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
                     // Diabetes Info
                     Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E8),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Diabetes-Friendly Info',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2E7D32),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildNutritionInfo('Carbs', '${widget.recipe.carbs}g', const Color(0xFFFF6B35)),
-                              _buildNutritionInfo('Sugar', '${widget.recipe.sugar}g', const Color(0xFF9C27B0)),
-                              _buildNutritionInfo('GI', '${widget.recipe.glycemicIndex}', const Color(0xFF2196F3)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+  padding: const EdgeInsets.all(20),
+  decoration: BoxDecoration(
+    color: const Color(0xFFE8F5E8),
+    borderRadius: BorderRadius.circular(16),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Diabetes-Friendly Info',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF2E7D32),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNutritionInfo('Carbs', '${widget.recipe.carbs}g', const Color(0xFFFF6B35)),
+          _buildNutritionInfo('Sugar', '${widget.recipe.sugar}g', const Color(0xFF9C27B0)),
+          _buildNutritionInfo('Calories', '${widget.recipe.calories}', const Color(0xFF2196F3)),
+        ],
+      ),
+    ],
+  ),
+),
 
                     const SizedBox(height: 32),
 

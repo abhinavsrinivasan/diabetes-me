@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/auth_service.dart';
+import '../../../features/auth/screens/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -395,25 +396,29 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
 
                             if (_isLogin) ...[
-                              const SizedBox(height: 16),
-                              Center(
-                                child: TextButton(
-                                  onPressed: () {
-                                    // Forgot password functionality
-                                    _showErrorSnackBar("Forgot password feature coming soon!");
-                                  },
-                                  child: Text(
-                                    'Forgot Password?',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
+  const SizedBox(height: 16),
+  Center(
+    child: TextButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ForgotPasswordScreen(),
+          ),
+        );
+      },
+      child: Text(
+        'Forgot Password?',
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ),
+  ),
+],
+                          ]
                         ),
                       ),
                     ),

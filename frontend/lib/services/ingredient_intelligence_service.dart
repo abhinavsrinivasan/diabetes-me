@@ -52,43 +52,32 @@ class IngredientSubstitute {
 }
 
 class IngredientIntelligenceService {
-  static const String _openAIUrl = 'https://api.openai.com/v1/chat/completions';
   static const _storage = FlutterSecureStorage();
   
-  // HARDCODED API KEY FOR DEVELOPMENT - REMOVE IN PRODUCTION!
-  static const String _hardcodedApiKey = "OPENAI_API_KEY"; // Replace with your actual key
-
-  // Cache for API responses to save costs and improve performance
-  static final Map<String, IngredientInsight> _cache = {};
+  static Future<String?> _getOpenAIApiKey() async {
+    // Get from secure storage or environment
+    String? apiKey = await _storage.read(key: 'openai_api_key');
+    
+    // Fallback to environment variable
+    apiKey ??= const String.fromEnvironment('OPENAI_API_KEY');
+    
+    return apiKey?.isNotEmpty == true ? apiKey : null;
+  }
   
+  static Future<bool> hasOpenAIApiKey() async {
+    final apiKey = await _getOpenAIApiKey();
+    return apiKey != null && apiKey.startsWith('sk-');
+  }
+  
+  // Remove the hardcoded key entirely
   static Future<IngredientInsight?> getIngredientInsight({
     required String ingredient,
     required String recipeTitle,
     String? recipeCategory,
   }) async {
-    try {
-      // Always use hardcoded key for now
-      if (_hardcodedApiKey.isEmpty || !_hardcodedApiKey.startsWith('sk-')) {
-        debugPrint('No valid hardcoded API key found');
-        return null;
-      }
-
-      // Check cache first
-      final cacheKey = '${ingredient.toLowerCase()}_${recipeTitle.toLowerCase()}';
-      if (_cache.containsKey(cacheKey)) {
-        debugPrint('Using cached insight for $ingredient');
-        return _cache[cacheKey]!;
-      }
-
-      debugPrint('Using OpenAI API for $ingredient');
-      final insight = await _getOpenAIInsight(ingredient, recipeTitle, recipeCategory);
-      
-      // Cache the result
-      _cache[cacheKey] = insight;
-      return insight;
-      
-    } catch (e) {
-      debugPrint('Error getting ingredient insight: $e');
+    final apiKey = await _getOpenAIApiKey();
+    if (apiKey == null) {
+      debugPrint('No OpenAI API key configured');
       return null;
     }
   }
