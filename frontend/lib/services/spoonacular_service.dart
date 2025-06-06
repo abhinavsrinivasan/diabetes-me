@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../features/recipes/models/recipe.dart';
 import '../config/env_config.dart';
+import 'recipe_cleaner_service.dart';
 
 // Custom exceptions for better error handling
 enum SpoonacularError {
@@ -38,6 +39,9 @@ class CacheEntry {
 }
 
 class SpoonacularService {
+  // Base URL for Spoonacular API
+  static const String _baseUrl = 'https://api.spoonacular.com';
+  
   static String get _apiKey {
     // Validate on first use
     EnvConfig.validateApiKeys();
@@ -80,6 +84,19 @@ class SpoonacularService {
     _requestCount++;
   }
 
+  /// Generate consistent cache keys
+  static String _generateCacheKey({
+    String? query,
+    String? diet,
+    String? mealType,
+    int maxCarbs = 30,
+    int maxSugar = 15,
+    int number = 20,
+    int offset = 0,
+  }) {
+    return 'search_${query ?? ''}_${diet ?? ''}_${mealType ?? ''}_${maxCarbs}_${maxSugar}_${number}_$offset';
+  }
+
   /// Search for diabetes-friendly recipes with enhanced filtering
   static Future<List<Recipe>> searchRecipes({
     String? query,
@@ -90,6 +107,29 @@ class SpoonacularService {
     int number = 20,
     int offset = 0,
   }) async {
+    // Generate cache key
+    final cacheKey = _generateCacheKey(
+      query: query,
+      diet: diet,
+      mealType: mealType,
+      maxCarbs: maxCarbs,
+      maxSugar: maxSugar,
+      number: number,
+      offset: offset,
+    );
+
+    // Check cache first
+    if (_recipeCache.containsKey(cacheKey)) {
+      final cacheEntry = _recipeCache[cacheKey]!;
+      if (!cacheEntry.isExpired) {
+        debugPrint('🎯 Using cached recipes for: $cacheKey');
+        return cacheEntry.recipes;
+      } else {
+        // Remove expired entry
+        _recipeCache.remove(cacheKey);
+      }
+    }
+
     try {
       await _checkRateLimit();
 
@@ -114,6 +154,7 @@ class SpoonacularService {
       final uri = Uri.parse('$_baseUrl/recipes/complexSearch')
           .replace(queryParameters: queryParams);
 
+      debugPrint('🌐 Making API request to Spoonacular...');
       final response = await http.get(uri).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -121,6 +162,8 @@ class SpoonacularService {
         final List<dynamic> results = data['results'] ?? [];
         
         final recipes = <Recipe>[];
+        int filteredCount = 0;
+        
         for (final recipeData in results) {
           try {
             final recipe = _convertAndCleanSpoonacularRecipe(recipeData);
@@ -128,10 +171,17 @@ class SpoonacularService {
               recipes.add(recipe);
             }
           } catch (e) {
-            debugPrint('Skipping recipe due to processing error: $e');
+            filteredCount++;
+            debugPrint('Filtered out recipe: $e');
             continue;
           }
         }
+        
+        debugPrint('✅ Processed ${results.length} recipes, kept ${recipes.length}, filtered $filteredCount');
+        
+        // Store in cache
+        _recipeCache[cacheKey] = CacheEntry(recipes, DateTime.now());
+        debugPrint('💾 Cached ${recipes.length} recipes for: $cacheKey');
         
         return recipes;
       } else {
@@ -148,6 +198,19 @@ class SpoonacularService {
     String? category,
     int number = 50,
   }) async {
+    final cacheKey = 'diabetic_friendly_${category ?? 'all'}_$number';
+    
+    // Check cache first
+    if (_recipeCache.containsKey(cacheKey)) {
+      final cacheEntry = _recipeCache[cacheKey]!;
+      if (!cacheEntry.isExpired) {
+        debugPrint('🎯 Using cached diabetic recipes');
+        return cacheEntry.recipes;
+      } else {
+        _recipeCache.remove(cacheKey);
+      }
+    }
+
     final List<Recipe> allRecipes = [];
     
     final searchTerms = [
@@ -178,7 +241,13 @@ class SpoonacularService {
     
     final uniqueRecipes = _removeDuplicateRecipes(allRecipes);
     uniqueRecipes.shuffle();
-    return uniqueRecipes.take(number).toList();
+    final finalRecipes = uniqueRecipes.take(number).toList();
+    
+    // Store in cache
+    _recipeCache[cacheKey] = CacheEntry(finalRecipes, DateTime.now());
+    debugPrint('💾 Cached ${finalRecipes.length} diabetic-friendly recipes');
+    
+    return finalRecipes;
   }
 
   /// Search by ingredients
@@ -256,11 +325,9 @@ class SpoonacularService {
     // Extract enhanced nutrition information
     final nutrition = _extractNutritionInfo(spoonacularData);
     
-    // Clean and standardize ingredients
-    final ingredients = _cleanIngredients(spoonacularData);
-    
-    // Clean and improve instructions
-    final instructions = _cleanInstructions(spoonacularData);
+    // Extract raw ingredients and instructions (before cleaning)
+    final rawIngredients = _extractRawIngredients(spoonacularData);
+    final rawInstructions = _extractRawInstructions(spoonacularData);
     
     // Determine accurate category and cuisine
     final category = _determineCategory(spoonacularData);
@@ -269,18 +336,28 @@ class SpoonacularService {
     // Get high-quality image
     final imageUrl = _getOptimalImageUrl(spoonacularData);
     
-    return Recipe(
+    // Create raw recipe with unprocessed data
+    final rawRecipe = Recipe(
       id: spoonacularData['id'] ?? Random().nextInt(999999),
-      title: _cleanTitle(spoonacularData['title'] ?? 'Unknown Recipe'),
+      title: spoonacularData['title'] ?? 'Unknown Recipe',
       image: imageUrl,
       carbs: nutrition['carbs']?.round() ?? 0,
       sugar: nutrition['sugar']?.round() ?? 0,
       calories: nutrition['calories']?.round() ?? 0,
       category: category,
       cuisine: cuisine,
-      ingredients: ingredients,
-      instructions: instructions,
+      ingredients: rawIngredients,
+      instructions: rawInstructions,
     );
+    
+    // Now clean it using RecipeCleanerService
+    try {
+      final cleanedRecipe = RecipeCleanerService.cleanRecipe(rawRecipe);
+      return cleanedRecipe;
+    } catch (e) {
+      debugPrint('Recipe filtered out: ${rawRecipe.title} - $e');
+      throw Exception('Recipe contains problematic content');
+    }
   }
 
   /// Extract comprehensive nutrition information
@@ -321,52 +398,30 @@ class SpoonacularService {
     return nutrition;
   }
 
-  /// Clean and standardize ingredients
-  static List<String> _cleanIngredients(Map<String, dynamic> data) {
+  /// Extract raw ingredients (before cleaning)
+  static List<String> _extractRawIngredients(Map<String, dynamic> data) {
     final extendedIngredients = data['extendedIngredients'] as List<dynamic>? ?? [];
     
     if (extendedIngredients.isEmpty) {
       final simple = data['ingredients'] as List<dynamic>? ?? [];
-      return simple.map((ing) => _standardizeIngredient(ing.toString())).toList();
+      return simple.map((ing) => ing.toString()).toList();
     }
     
-    final cleanedIngredients = <String>[];
-    
+    final ingredients = <String>[];
     for (final ingredient in extendedIngredients) {
-      String name = ingredient['name']?.toString() ?? 
-                   ingredient['original']?.toString() ?? '';
+      String name = ingredient['original']?.toString() ?? 
+                   ingredient['name']?.toString() ?? '';
       
       if (name.isNotEmpty) {
-        cleanedIngredients.add(_standardizeIngredient(name));
+        ingredients.add(name); // Keep original, let cleaner handle it
       }
     }
     
-    return cleanedIngredients.isEmpty ? ['No ingredients available'] : cleanedIngredients;
+    return ingredients.isEmpty ? ['No ingredients available'] : ingredients;
   }
 
-  /// Standardize ingredient names
-  static String _standardizeIngredient(String ingredient) {
-    String cleaned = ingredient
-        .replaceAll(RegExp(r'\d+[\s]*[\/\d]*[\s]*(cups?|tbsp|tsp|oz|lbs?|grams?|g|kg|ml|l|cloves?|pieces?|slices?)\b', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\([^)]*\)'), '')
-        .replaceAll(RegExp(r'\b(fresh|frozen|dried|canned|organic|chopped|diced|minced|sliced)\b', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\b(to taste|as needed|optional|for serving|for garnish)\b', caseSensitive: false), '')
-        .replaceAll(RegExp(r'[,\-]+'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    
-    if (cleaned.isNotEmpty) {
-      cleaned = cleaned.split(' ')
-          .where((word) => word.isNotEmpty)
-          .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
-          .join(' ');
-    }
-    
-    return cleaned.isEmpty ? ingredient : cleaned;
-  }
-
-  /// Clean instructions
-  static List<String> _cleanInstructions(Map<String, dynamic> data) {
+  /// Extract raw instructions (before cleaning)
+  static List<String> _extractRawInstructions(Map<String, dynamic> data) {
     final analyzedInstructions = data['analyzedInstructions'] as List<dynamic>? ?? [];
     
     if (analyzedInstructions.isEmpty) {
@@ -382,7 +437,7 @@ class SpoonacularService {
       }
     }
     
-    final cleanInstructions = <String>[];
+    final rawInstructions = <String>[];
     
     for (final instructionGroup in analyzedInstructions) {
       final steps = instructionGroup['steps'] as List<dynamic>? ?? [];
@@ -390,35 +445,14 @@ class SpoonacularService {
       for (final step in steps) {
         final stepText = step['step']?.toString() ?? '';
         if (stepText.isNotEmpty) {
-          cleanInstructions.add(_cleanInstructionStep(stepText));
+          rawInstructions.add(stepText); // Keep raw, let cleaner handle it
         }
       }
     }
     
-    return cleanInstructions.isEmpty 
+    return rawInstructions.isEmpty 
         ? ['Prepare according to ingredients listed above.']
-        : cleanInstructions;
-  }
-
-  /// Clean individual instruction step
-  static String _cleanInstructionStep(String step) {
-    String cleaned = step
-        .replaceAll(RegExp(r'<[^>]*>'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    
-    if (cleaned.isNotEmpty && 
-        !cleaned.endsWith('.') && 
-        !cleaned.endsWith('!') && 
-        !cleaned.endsWith('?')) {
-      cleaned += '.';
-    }
-    
-    if (cleaned.isNotEmpty) {
-      cleaned = cleaned[0].toUpperCase() + cleaned.substring(1);
-    }
-    
-    return cleaned;
+        : rawInstructions;
   }
 
   /// Parse instructions from text
@@ -431,7 +465,7 @@ class SpoonacularService {
     final steps = cleaned
         .split(RegExp(r'[.!]\s+|\d+\.\s+'))
         .where((step) => step.trim().length > 10)
-        .map((step) => _cleanInstructionStep(step))
+        .map((step) => step.trim())
         .toList();
     
     return steps.isEmpty ? ['Follow recipe as described.'] : steps;
@@ -501,15 +535,7 @@ class SpoonacularService {
     return placeholders[category] ?? 'https://images.unsplash.com/photo-1546548970-71785318a17b?w=400&h=400&fit=crop';
   }
 
-  /// Clean title
-  static String _cleanTitle(String title) {
-    return title
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceAll(RegExp(r'[^\w\s&\-\(\),.]'), '')
-        .trim();
-  }
-
-  /// Check recipe quality
+  /// Check recipe quality (after cleaning)
   static bool _isHighQualityRecipe(Recipe recipe) {
     if (recipe.calories == 0 && recipe.carbs == 0) return false;
     if (recipe.ingredients.length < 2 || recipe.ingredients.length > 25) return false;
@@ -517,7 +543,8 @@ class SpoonacularService {
     if (recipe.carbs > 45 || recipe.sugar > 25) return false;
     if (recipe.title.length < 5 || recipe.title.toLowerCase().contains('unknown')) return false;
     
-    return true;
+    // Additional validation using RecipeCleanerService
+    return RecipeCleanerService.isValidRecipe(recipe);
   }
 
   /// Remove duplicates

@@ -54,6 +54,12 @@ class IngredientSubstitute {
 }
 
 class IngredientIntelligenceService {
+  // Add these missing constants and variables
+  static const String _openAIUrl = 'https://api.openai.com/v1/chat/completions';
+  static final FlutterSecureStorage _storage = FlutterSecureStorage();
+  
+  // In-memory cache for ingredient insights
+  static final Map<String, IngredientInsight> _cache = {};
   // Replace the existing _getOpenAIApiKey method
   static Future<String?> _getOpenAIApiKey() async {
     // First check dart-define environment variable
