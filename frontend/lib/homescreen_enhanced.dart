@@ -6,11 +6,12 @@ import 'recipedetail.dart';
 import 'recipe_utils.dart';
 import 'grocery_list_screen.dart';
 import 'barcode_scanner_screen.dart';
-import 'services/spoonacular_service.dart';
+import 'services/curated_recipes_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'services/auth_service.dart';
 import 'dart:io' show Platform;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class EnhancedHomeScreen extends StatefulWidget {
   @override
@@ -29,8 +30,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
   String userName = '';
   String greeting = '';
   
-  bool isLoadingSpoonacular = false;
-  bool isSearchingNew = false;
+  bool isLoadingRecipes = false;
   String lastSearchQuery = '';
   
   // Pagination
@@ -49,7 +49,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
     _tabController = TabController(length: 3, vsync: this);
     fetchUserProfile();
     updateGreeting();
-    loadSpoonacularRecipes();
+    loadSupabaseRecipes(); // <-- Use Supabase instead of Spoonacular
   }
 
   @override
@@ -89,48 +89,13 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
     }
   }
 
-  Future<void> loadSpoonacularRecipes() async {
+  Future<void> loadSupabaseRecipes() async {
     setState(() {
-      isLoadingSpoonacular = true;
+      isLoadingRecipes = true;
     });
-
     try {
-      // Load 200 diabetes-friendly recipes from different categories
-      final List<Future<List<Recipe>>> recipeFutures = [
-        SpoonacularService.getDiabeticFriendlyRecipes(number: 50),
-        SpoonacularService.searchRecipes(
-          query: 'breakfast',
-          maxCarbs: 30,
-          maxSugar: 10,
-          number: 40,
-        ),
-        SpoonacularService.searchRecipes(
-          query: 'lunch',
-          maxCarbs: 35,
-          maxSugar: 15,
-          number: 40,
-        ),
-        SpoonacularService.searchRecipes(
-          query: 'dinner',
-          maxCarbs: 40,
-          maxSugar: 15,
-          number: 40,
-        ),
-        SpoonacularService.searchRecipes(
-          query: 'snack',
-          maxCarbs: 20,
-          maxSugar: 8,
-          number: 30,
-        ),
-      ];
-
-      final results = await Future.wait(recipeFutures);
-      final List<Recipe> loadedRecipes = [];
-      
-      for (final recipeList in results) {
-        loadedRecipes.addAll(recipeList);
-      }
-
+      final data = await CuratedRecipesService().fetchAllRecipes();
+      final List<Recipe> loadedRecipes = data.map((json) => Recipe.fromJson(json)).toList();
       setState(() {
         allRecipes = loadedRecipes;
         // Remove duplicates based on title
@@ -139,11 +104,11 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
         applyFilters();
       });
     } catch (e) {
-      debugPrint('Error loading Spoonacular recipes: $e');
-      _showSnackBar('Failed to load recipes. Please check your internet connection.');
+      debugPrint('Error loading Supabase recipes: $e');
+      _showSnackBar('Failed to load recipes from Supabase.');
     } finally {
       setState(() {
-        isLoadingSpoonacular = false;
+        isLoadingRecipes = false;
       });
     }
   }
@@ -166,15 +131,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
       // Reset to page 1 when filters change
       currentPage = 1;
     });
-
-    // If no results found and user has searched for something, search Spoonacular
-    if (filteredRecipes.isEmpty && 
-        searchQuery.isNotEmpty && 
-        searchQuery.length >= 3 && 
-        searchQuery != lastSearchQuery &&
-        !isSearchingNew) {
-      _searchSpoonacularForQuery(searchQuery);
-    }
   }
 
   List<Recipe> get paginatedRecipes {
@@ -197,73 +153,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
     setState(() {
       currentPage = page;
     });
-  }
-
-  Future<void> _searchSpoonacularForQuery(String query) async {
-    setState(() {
-      isSearchingNew = true;
-      lastSearchQuery = query;
-    });
-
-    try {
-      final newRecipes = await SpoonacularService.searchRecipes(
-        query: query,
-        number: 20,
-        maxCarbs: carbRange.end.round(),
-        maxSugar: sugarRange.end.round(),
-      );
-
-      if (newRecipes.isNotEmpty) {
-        setState(() {
-          // Add new recipes to the main list, avoiding duplicates
-          final existingTitles = allRecipes.map((r) => r.title.toLowerCase()).toSet();
-          final uniqueNewRecipes = newRecipes.where(
-            (recipe) => !existingTitles.contains(recipe.title.toLowerCase())
-          ).toList();
-          
-          allRecipes.addAll(uniqueNewRecipes);
-          applyFilters(); // Reapply filters to show new results
-        });
-
-        _showSnackBar('Found ${newRecipes.length} additional recipes for "$query"!');
-      } else {
-        _showSnackBar('No additional recipes found for "$query"');
-      }
-    } catch (e) {
-      debugPrint('Error searching Spoonacular for query: $e');
-      _showSnackBar('Failed to search for additional recipes');
-    } finally {
-      setState(() {
-        isSearchingNew = false;
-      });
-    }
-  }
-
-  Future<void> searchByIngredients(List<String> ingredients) async {
-    setState(() {
-      isLoadingSpoonacular = true;
-    });
-
-    try {
-      final results = await SpoonacularService.searchByIngredients(ingredients);
-      setState(() {
-        // Replace current recipes with ingredient-based results
-        allRecipes = results;
-        filteredRecipes = results;
-        searchQuery = ''; // Clear search query
-        selectedCategory = 'All'; // Reset filters
-        selectedCuisine = 'All';
-        carbRange = const RangeValues(0, 100);
-        sugarRange = const RangeValues(0, 50);
-      });
-      _showSnackBar('Found ${results.length} recipes with your ingredients!');
-    } catch (e) {
-      _showSnackBar('Failed to search by ingredients');
-    } finally {
-      setState(() {
-        isLoadingSpoonacular = false;
-      });
-    }
   }
 
   void _showSnackBar(String message) {
@@ -717,11 +606,11 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.9),
+                      color: Colors.blue.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
-                      'SPOONACULAR',
+                      'SUPABASE',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -879,78 +768,19 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                       ),
                       IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.deepPurple),
-                        onPressed: loadSpoonacularRecipes,
+                        onPressed: loadSupabaseRecipes,
                         tooltip: 'Refresh',
                       ),
                       PopupMenuButton<String>(
                         icon: const Icon(Icons.more_vert, color: Colors.deepPurple),
                         onSelected: (value) {
-                          if (value == 'search_ingredients') {
-                            _showIngredientSearchDialog();
-                          }
+                          // Removed ingredient search
                         },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: 'search_ingredients',
-                            child: Row(
-                              children: [
-                                Icon(Icons.search, color: Colors.deepPurple),
-                                SizedBox(width: 8),
-                                Text('Search by Ingredients'),
-                              ],
-                            ),
-                          ),
-                        ],
+                        itemBuilder: (context) => [], // No menu items
                       ),
                     ],
                   )
                 ],
-              ),
-            ),
-
-            // Tab Bar for categories
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: TabBar(
-                controller: _tabController,
-                labelColor: Colors.deepPurple,
-                unselectedLabelColor: Colors.grey,
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  color: Colors.deepPurple.withOpacity(0.1),
-                ),
-                tabs: const [
-                  Tab(text: 'All Recipes'),
-                  Tab(text: 'Diabetic'),
-                  Tab(text: 'Low Carb'),
-                ],
-                onTap: (index) {
-                  switch (index) {
-                    case 0:
-                      setState(() {
-                        selectedCategory = 'All';
-                        applyFilters();
-                      });
-                      break;
-                    case 1:
-                      _filterDiabeticFriendly();
-                      break;
-                    case 2:
-                      _filterLowCarb();
-                      break;
-                  }
-                },
               ),
             ),
 
@@ -978,7 +808,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                 decoration: InputDecoration(
                   hintText: 'Search for recipes...',
                   prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                  suffixIcon: (isLoadingSpoonacular || isSearchingNew)
+                  suffixIcon: (isLoadingRecipes)
                     ? const Padding(
                         padding: EdgeInsets.all(12),
                         child: SizedBox(
@@ -1081,7 +911,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
 
             // Recipes Grid
             Expanded(
-              child: allRecipes.isEmpty && isLoadingSpoonacular
+              child: allRecipes.isEmpty && isLoadingRecipes
                 ? const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1122,9 +952,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                             const SizedBox(height: 8),
                             Text(
                               searchQuery.isNotEmpty && searchQuery.length >= 3
-                                ? isSearchingNew 
-                                    ? 'Searching Spoonacular for more recipes...'
-                                    : 'Try a different search term or adjust your filters'
+                                ? 'Try a different search term or adjust your filters'
                                 : 'Try adjusting your search criteria or filters',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -1165,9 +993,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                               },
                             ),
                           ),
-                          
-                          // Pagination
-                          if (totalPages > 1) _buildPagination(),
                         ],
                       ),
             ),
@@ -1202,166 +1027,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
         return recipe.carbs <= 30 && 
                recipe.sugar <= 15;
       }).toList();
-    });
-  }
-
-  void _filterLowCarb() {
-    setState(() {
-      filteredRecipes = allRecipes.where((recipe) {
-        return recipe.carbs <= 20;
-      }).toList();
-    });
-  }
-
-  void _showIngredientSearchDialog() {
-    final ingredientController = TextEditingController();
-    final ingredients = <String>[];
-    
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Search by Ingredients'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: ingredientController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter ingredient (e.g., chicken, broccoli)',
-                  border: OutlineInputBorder(),
-                ),
-                onSubmitted: (value) {
-                  if (value.trim().isNotEmpty && !ingredients.contains(value.trim())) {
-                    setDialogState(() {
-                      ingredients.add(value.trim());
-                      ingredientController.clear();
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              if (ingredients.isNotEmpty) ...[
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Ingredients:', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: ingredients.map((ingredient) {
-                    return Chip(
-                      label: Text(ingredient),
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      onDeleted: () {
-                        setDialogState(() {
-                          ingredients.remove(ingredient);
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: ingredients.isEmpty ? null : () {
-                Navigator.pop(context);
-                searchByIngredients(ingredients);
-              },
-              child: const Text('Search'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPagination() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Previous button
-          if (currentPage > 1)
-            IconButton(
-              onPressed: () => _goToPage(currentPage - 1),
-              icon: const Icon(Icons.chevron_left),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                side: BorderSide(color: Colors.grey[300]!),
-              ),
-            ),
-          
-          const SizedBox(width: 8),
-          
-          // Page numbers
-          ...List.generate(totalPages, (index) {
-            final pageNumber = index + 1;
-            final isCurrentPage = pageNumber == currentPage;
-            
-            // Show max 5 pages centered around current page
-            if (totalPages <= 5 || 
-                (pageNumber >= currentPage - 2 && pageNumber <= currentPage + 2) ||
-                pageNumber == 1 || pageNumber == totalPages) {
-              
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: InkWell(
-                  onTap: () => _goToPage(pageNumber),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isCurrentPage ? Colors.deepPurple : Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isCurrentPage ? Colors.deepPurple : Colors.grey[300]!,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        pageNumber.toString(),
-                        style: TextStyle(
-                          color: isCurrentPage ? Colors.white : Colors.black87,
-                          fontWeight: isCurrentPage ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            } else if ((pageNumber == currentPage - 3 && currentPage > 4) ||
-                       (pageNumber == currentPage + 3 && currentPage < totalPages - 3)) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text('...', style: TextStyle(color: Colors.grey)),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-          
-          const SizedBox(width: 8),
-          
-          // Next button
-          if (currentPage < totalPages)
-            IconButton(
-              onPressed: () => _goToPage(currentPage + 1),
-              icon: const Icon(Icons.chevron_right),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                side: BorderSide(color: Colors.grey[300]!),
-              ),
-            ),
-        ],
-      ),
-    );
+  });
   }
 }

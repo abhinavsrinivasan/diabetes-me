@@ -17,6 +17,24 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
+# Add Supabase env vars if not present
+if ! grep -q 'SUPABASE_URL' "$ENV_FILE"; then
+    echo 'SUPABASE_URL=your_supabase_url_here' >> "$ENV_FILE"
+fi
+if ! grep -q 'SUPABASE_SERVICE_ROLE_KEY' "$ENV_FILE"; then
+    echo 'SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here' >> "$ENV_FILE"
+fi
+
+# Export Supabase env vars for Python scripts
+export SUPABASE_URL=$(grep SUPABASE_URL "$ENV_FILE" | cut -d '=' -f2-)
+export SUPABASE_SERVICE_ROLE_KEY=$(grep SUPABASE_SERVICE_ROLE_KEY "$ENV_FILE" | cut -d '=' -f2-)
+
+# Activate Python virtual environment if it exists
+if [ -d "$FRONTEND_DIR/../diabetes_env" ]; then
+    echo "🐍 Activating Python virtual environment..."
+    source "$FRONTEND_DIR/../diabetes_env/bin/activate"
+fi
+
 # Read .env file and build dart-define arguments
 DART_DEFINES=""
 while IFS='=' read -r key value || [ -n "$key" ]; do

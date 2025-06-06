@@ -7,18 +7,20 @@ import 'services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'config/env_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
-  // Move the validation here, inside a function
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: const String.fromEnvironment('SUPABASE_URL'),
+    anonKey: const String.fromEnvironment('SUPABASE_SERVICE_ROLE_KEY'),
+  );
   try {
     EnvConfig.validateApiKeys();
     EnvConfig.printDebugInfo();
   } catch (e) {
     print('❌ Environment Error: $e');
-    // In development, you might want to show an error dialog
-    // In production, you might want to disable certain features
   }
-  
   runApp(const DiabetesMeApp());
 }
 
