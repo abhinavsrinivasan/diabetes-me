@@ -43,18 +43,32 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
   RangeValues carbRange = const RangeValues(0, 100);
   RangeValues sugarRange = const RangeValues(0, 50);
 
+  // Remove NotificationListener and use ScrollController to detect bottom only once
+  ScrollController _gridScrollController = ScrollController();
+
+  // Add FocusNode for search bar
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _searchBarFocused = false;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     fetchUserProfile();
     updateGreeting();
-    loadSupabaseRecipes(); // <-- Use Supabase instead of Spoonacular
+    loadSupabaseRecipes();
+    _searchFocusNode.addListener(() {
+      setState(() {
+        _searchBarFocused = _searchFocusNode.hasFocus;
+      });
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _gridScrollController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -599,27 +613,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                   ),
                 ),
                 
-                // Recipe source badge
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'SUPABASE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                
                 // Action buttons
                 Positioned(
                   top: 8,
@@ -692,32 +685,19 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.local_dining, size: 12, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            recipe.category,
-                            style: const TextStyle(fontSize: 10, color: Colors.grey),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const Spacer(),
-                        Flexible(
-                          child: Text(
-                            recipe.cuisine,
-                            style: const TextStyle(fontSize: 10, color: Colors.orange),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                    // Only show cuisine, not category
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        recipe.cuisine,
+                        style: const TextStyle(fontSize: 10, color: Colors.orange),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 6),
                     Flexible(
                       child: Text(
-                        'Carbs: {recipe.carbs}g • Sugar: {recipe.sugar}g\nCalories: {recipe.calories}',
+                        'Carbs: ${recipe.carbs} g • Sugar: ${recipe.sugar} g\nCalories: ${recipe.calories}',
                         style: const TextStyle(fontSize: 10),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -788,13 +768,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                         onPressed: loadSupabaseRecipes,
                         tooltip: 'Refresh',
                       ),
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: Colors.deepPurple),
-                        onSelected: (value) {
-                          // Removed ingredient search
-                        },
-                        itemBuilder: (context) => [], // No menu items
-                      ),
                     ],
                   )
                 ],
@@ -807,6 +780,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
+                focusNode: _searchFocusNode,
                 onChanged: (value) {
                   setState(() {
                     searchQuery = value;
@@ -997,6 +971,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                           // Recipes Grid
                           Expanded(
                             child: GridView.builder(
+                              controller: _gridScrollController,
                               padding: const EdgeInsets.all(16),
                               itemCount: paginatedRecipes.length,
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1010,28 +985,25 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                               },
                             ),
                           ),
-                          // Pagination Controls
-                          if (totalPages > 1)
+                          if (totalPages > 1 && !_searchBarFocused)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              padding: const EdgeInsets.only(top: 8, bottom: 16),
+                              child: Wrap(
+                                alignment: WrapAlignment.center,
+                                spacing: 4,
                                 children: [
                                   for (int i = 1; i <= totalPages; i++)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                                      child: OutlinedButton(
-                                        style: OutlinedButton.styleFrom(
-                                          backgroundColor: i == currentPage ? Colors.deepPurple : Colors.white,
-                                          foregroundColor: i == currentPage ? Colors.white : Colors.deepPurple,
-                                          minimumSize: const Size(36, 36),
-                                          padding: EdgeInsets.zero,
-                                          side: BorderSide(color: Colors.deepPurple.withOpacity(i == currentPage ? 0.7 : 0.2)),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                        ),
-                                        onPressed: () => _goToPage(i),
-                                        child: Text('$i', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    OutlinedButton(
+                                      style: OutlinedButton.styleFrom(
+                                        backgroundColor: i == currentPage ? Colors.deepPurple : Colors.white,
+                                        foregroundColor: i == currentPage ? Colors.white : Colors.deepPurple,
+                                        minimumSize: const Size(36, 36),
+                                        padding: EdgeInsets.zero,
+                                        side: BorderSide(color: Colors.deepPurple.withOpacity(i == currentPage ? 0.7 : 0.2)),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
+                                      onPressed: () => _goToPage(i),
+                                      child: Text('$i', style: const TextStyle(fontWeight: FontWeight.bold)),
                                     ),
                                 ],
                               ),
@@ -1070,6 +1042,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
         return recipe.carbs <= 30 && 
                recipe.sugar <= 15;
       }).toList();
-  });
+    });
   }
 }

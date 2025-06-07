@@ -18,6 +18,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   bool isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Listen to torch state and update UI when it changes
+    cameraController.torchState.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     cameraController.dispose();
     super.dispose();
@@ -168,16 +177,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
+                  // Removed back arrow button
                   const Spacer(),
                   Container(
                     decoration: BoxDecoration(
@@ -186,7 +186,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     ),
                     child: IconButton(
                       icon: Icon(
-                        cameraController.torchEnabled ? Icons.flash_on : Icons.flash_off,
+                        cameraController.torchState.value == TorchState.on ? Icons.flash_on : Icons.flash_off,
                         color: Colors.white,
                       ),
                       onPressed: () => cameraController.toggleTorch(),

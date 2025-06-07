@@ -154,32 +154,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 onPressed: () => Navigator.pop(context),
               ),
             ),
+            // Remove favorite button from actions
             actions: [
+              // Replace with cuisine badge (moved from flexibleSpace)
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.orange.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: IconButton(
-                  icon: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: isFavorite ? Colors.red : Colors.black,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Text(
+                    widget.recipe.cuisine,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      isFavorite = !isFavorite;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(isFavorite ? 'Added to favorites!' : 'Removed from favorites'),
-                        backgroundColor: isFavorite ? const Color(0xFF4CAF50) : Colors.grey[600],
-                        duration: const Duration(seconds: 1),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    );
-                  },
                 ),
               ),
             ],
@@ -203,26 +196,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         ),
                       ),
                     ),
-                    // Cuisine badge
-                    Positioned(
-                      top: 80,
-                      left: 16,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          widget.recipe.cuisine,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
+                    // Remove cuisine badge from here
                   ],
                 ),
               ),
