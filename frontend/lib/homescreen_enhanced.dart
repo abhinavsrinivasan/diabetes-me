@@ -40,8 +40,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
   late TabController _tabController;
 
   // Range filters (removed glycemic index)
-  RangeValues carbRange = const RangeValues(0, 100);
-  RangeValues sugarRange = const RangeValues(0, 50);
+  RangeValues carbRange = const RangeValues(0, 50);
+  RangeValues sugarRange = const RangeValues(0, 25);
 
   // Remove NotificationListener and use ScrollController to detect bottom only once
   ScrollController _gridScrollController = ScrollController();
@@ -362,8 +362,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                             RangeSlider(
                               values: tempCarbRange,
                               min: 0,
-                              max: 100,
-                              divisions: 20,
+                              max: 50,
+                              divisions: 10,
                               labels: RangeLabels(
                                 '${tempCarbRange.start.round()}g',
                                 '${tempCarbRange.end.round()}g',
@@ -413,8 +413,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                             RangeSlider(
                               values: tempSugarRange,
                               min: 0,
-                              max: 50,
-                              divisions: 25,
+                              max: 25,
+                              divisions: 5,
                               labels: RangeLabels(
                                 '${tempSugarRange.start.round()}g',
                                 '${tempSugarRange.end.round()}g',
@@ -474,8 +474,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                                 setDialogState(() {
                                   tempSelectedCategory = 'All';
                                   tempSelectedCuisine = 'All';
-                                  tempCarbRange = const RangeValues(0, 100);
-                                  tempSugarRange = const RangeValues(0, 50);
+                                  tempCarbRange = const RangeValues(0, 50);
+                                  tempSugarRange = const RangeValues(0, 25);
                                 });
                               },
                               style: OutlinedButton.styleFrom(
@@ -827,8 +827,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
 
             // Active Filters Display (if any filters are applied)
             if (selectedCategory != 'All' || selectedCuisine != 'All' || 
-                carbRange.start != 0 || carbRange.end != 100 || 
-                sugarRange.start != 0 || sugarRange.end != 50)
+                carbRange.start != 0 || carbRange.end != 50 || 
+                sugarRange.start != 0 || sugarRange.end != 25)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -859,8 +859,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                             setState(() {
                               selectedCategory = 'All';
                               selectedCuisine = 'All';
-                              carbRange = const RangeValues(0, 100);
-                              sugarRange = const RangeValues(0, 50);
+                              carbRange = const RangeValues(0, 50);
+                              sugarRange = const RangeValues(0, 25);
                               applyFilters();
                             });
                           },
@@ -885,9 +885,9 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                           _buildFilterChip('Category: $selectedCategory', Colors.deepPurple),
                         if (selectedCuisine != 'All')
                           _buildFilterChip('Cuisine: $selectedCuisine', Colors.orange),
-                        if (carbRange.start != 0 || carbRange.end != 100)
+                        if (carbRange.start != 0 || carbRange.end != 50)
                           _buildFilterChip('Carbs: ${carbRange.start.round()}-${carbRange.end.round()}g', Colors.green),
-                        if (sugarRange.start != 0 || sugarRange.end != 50)
+                        if (sugarRange.start != 0 || sugarRange.end != 25)
                           _buildFilterChip('Sugar: ${sugarRange.start.round()}-${sugarRange.end.round()}g', Colors.purple),
                       ],
                     ),
@@ -896,8 +896,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
               ),
 
             if (selectedCategory != 'All' || selectedCuisine != 'All' || 
-                carbRange.start != 0 || carbRange.end != 100 || 
-                sugarRange.start != 0 || sugarRange.end != 50)
+                carbRange.start != 0 || carbRange.end != 50 || 
+                sugarRange.start != 0 || sugarRange.end != 25)
               const SizedBox(height: 16),
 
             // Recipes Grid
