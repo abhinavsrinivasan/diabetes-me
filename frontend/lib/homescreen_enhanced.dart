@@ -35,7 +35,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
   
   // Pagination
   int currentPage = 1;
-  final int recipesPerPage = 20;
+  final int recipesPerPage = 10;
   
   late TabController _tabController;
 
@@ -693,18 +693,35 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                     ),
                     const SizedBox(height: 4),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.local_dining, size: 12, color: Colors.grey[600]),
                         const SizedBox(width: 4),
-                        Text(recipe.category, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                        Flexible(
+                          child: Text(
+                            recipe.category,
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         const Spacer(),
-                        Text(recipe.cuisine, style: const TextStyle(fontSize: 10, color: Colors.orange)),
+                        Flexible(
+                          child: Text(
+                            recipe.cuisine,
+                            style: const TextStyle(fontSize: 10, color: Colors.orange),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                     const Spacer(),
-                    Text(
-                      "Carbs: ${recipe.carbs}g • Sugar: ${recipe.sugar}g\nCalories: ${recipe.calories}",
-                      style: const TextStyle(fontSize: 11),
+                    Flexible(
+                      child: Text(
+                        'Carbs: {recipe.carbs}g • Sugar: {recipe.sugar}g\nCalories: {recipe.calories}',
+                        style: const TextStyle(fontSize: 10),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -993,6 +1010,32 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                               },
                             ),
                           ),
+                          // Pagination Controls
+                          if (totalPages > 1)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  for (int i = 1; i <= totalPages; i++)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          backgroundColor: i == currentPage ? Colors.deepPurple : Colors.white,
+                                          foregroundColor: i == currentPage ? Colors.white : Colors.deepPurple,
+                                          minimumSize: const Size(36, 36),
+                                          padding: EdgeInsets.zero,
+                                          side: BorderSide(color: Colors.deepPurple.withOpacity(i == currentPage ? 0.7 : 0.2)),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () => _goToPage(i),
+                                        child: Text('$i', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
             ),
