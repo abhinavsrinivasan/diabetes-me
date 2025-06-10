@@ -57,18 +57,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     setState(() => _isLoading = true);
 
     try {
-      // Simulate sending reset code (in real implementation, this would call your backend)
-      await Future.delayed(const Duration(seconds: 2));
+      final success = await AuthService().sendPasswordResetEmail(email);
       
-      // For demo purposes, always succeed
-      setState(() {
-        _codeSent = true;
-        _userEmail = email;
-      });
-      
-      _showSuccessSnackBar('Reset code sent to $email');
+      if (success) {
+        setState(() {
+          _codeSent = true;
+          _userEmail = email;
+        });
+        
+        _showSuccessSnackBar('Password reset link sent to $email. Check your email!');
+      } else {
+        _showErrorSnackBar('Failed to send reset email. Please check your email address.');
+      }
     } catch (e) {
-      _showErrorSnackBar('Failed to send reset code. Please try again.');
+      _showErrorSnackBar('An error occurred. Please try again.');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -77,24 +79,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   Future<void> _verifyCode() async {
     final code = _codeController.text.trim();
     if (code.isEmpty || code.length != 6) {
-      _showErrorSnackBar('Please enter the 6-digit verification code');
+      _showErrorSnackBar('Please enter the 6-digit verification code from your email');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      // Simulate code verification (in real implementation, verify with backend)
-      await Future.delayed(const Duration(seconds: 1));
+      final success = await AuthService().verifyOTP(_userEmail, code);
       
-      // For demo purposes, accept any 6-digit code
-      if (code.length == 6) {
+      if (success) {
         setState(() {
           _codeVerified = true;
         });
         _showSuccessSnackBar('Code verified successfully');
       } else {
-        _showErrorSnackBar('Invalid verification code');
+        _showErrorSnackBar('Invalid verification code. Please check and try again.');
       }
     } catch (e) {
       _showErrorSnackBar('Failed to verify code. Please try again.');
@@ -120,18 +120,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     setState(() => _isLoading = true);
 
     try {
-      // Simulate password reset (in real implementation, call your backend)
-      await Future.delayed(const Duration(seconds: 2));
+      final success = await AuthService().updatePassword(newPassword);
       
-      _showSuccessSnackBar('Password reset successfully!');
-      
-      // Navigate back to login
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+      if (success) {
+        _showSuccessSnackBar('Password reset successfully!');
+        
+        // Navigate back to login
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      } else {
+        _showErrorSnackBar('Failed to reset password. Please try again.');
       }
     } catch (e) {
-      _showErrorSnackBar('Failed to reset password. Please try again.');
+      _showErrorSnackBar('An error occurred. Please try again.');
     } finally {
       setState(() => _isLoading = false);
     }

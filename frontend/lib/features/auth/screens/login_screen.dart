@@ -62,6 +62,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   void _submit() async {
+    // Validate inputs
+    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+      _showErrorSnackBar("Please fill in all fields");
+      return;
+    }
+
+    if (!_isValidEmail(_emailController.text.trim())) {
+      _showErrorSnackBar("Please enter a valid email address");
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      _showErrorSnackBar("Password must be at least 6 characters");
+      return;
+    }
+
     setState(() => _loading = true);
 
     final email = _emailController.text.trim();
@@ -75,20 +91,31 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       if (success) {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
-        _showErrorSnackBar("Invalid credentials. Please try again.");
+        _showErrorSnackBar("Invalid email or password. Please try again.");
       }
     } else {
+      // Validate signup fields
+      if (name.isEmpty) {
+        setState(() => _loading = false);
+        _showErrorSnackBar("Please enter your name");
+        return;
+      }
+
       bool success = await _authService.signup(email, password, name: name);
       setState(() => _loading = false);
 
       if (success) {
-        _showSuccessSnackBar("Account created successfully! Please sign in.");
+        _showSuccessSnackBar("Account created successfully! You can now sign in.");
         setState(() => _isLogin = true);
         _clearFields();
       } else {
-        _showErrorSnackBar("Failed to create account. Email may already exist.");
+        _showErrorSnackBar("This email is already registered or an error occurred.");
       }
     }
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
   void _showSuccessSnackBar(String message) {

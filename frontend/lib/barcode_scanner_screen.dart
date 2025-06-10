@@ -136,6 +136,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      // Reset scanner after adding to list
+      _resetScanner();
     }
   }
 

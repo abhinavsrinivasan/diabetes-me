@@ -81,9 +81,10 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: AuthService().getToken(),
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
+        // Show loading while checking auth state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
@@ -99,33 +100,10 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
-          return FutureBuilder<Map<String, dynamic>?>(
-            future: AuthService().getProfile(),
-            builder: (context, profileSnapshot) {
-              if (profileSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Verifying authentication...'),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              if (profileSnapshot.hasData && profileSnapshot.data != null) {
-                return const MainAppScaffold();
-              } else {
-                AuthService().logout();
-                return const LoginScreen();
-              }
-            },
-          );
+        // Check if user is authenticated
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session != null) {
+          return const MainAppScaffold();
         } else {
           return const LoginScreen();
         }
@@ -169,8 +147,8 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.shopping_cart_outlined),
-            selectedIcon: Icon(Icons.shopping_cart),
+            icon: Icon(Icons.checklist_outlined),
+            selectedIcon: Icon(Icons.checklist),
             label: 'Grocery List',
           ),
           NavigationDestination(

@@ -16,42 +16,19 @@ class RecipeUtils {
         : 'http://10.0.2.2:5001';      // Android emulator
   
   static Future<String?> _getUserEmail() async {
-    final token = await AuthService().getToken();
-    if (token == null) return null;
-    
-    try {
-      final parts = token.split('.');
-      if (parts.length == 3) {
-        final payload = json.decode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
-        return payload['sub'] ?? payload['email'];
-      }
-    } catch (e) {
-      debugPrint('Error decoding token: $e');
-    }
-    return null;
+    final user = AuthService().currentUser;
+    return user?.email;
   }
   
   // Add recipe nutrition to daily goals
   static Future<void> addRecipeNutrition(Recipe recipe, BuildContext context) async {
-    final token = await AuthService().getToken();
-    if (token == null) return;
-    
     try {
-      debugPrint('Attempting to add nutrition to: $baseUrl/progress');
+      final success = await AuthService().updateProgress({
+        'carbs': recipe.carbs,
+        'sugar': recipe.sugar,
+      });
       
-      final res = await http.post(
-        Uri.parse('$baseUrl/progress'),
-        headers: {"Content-Type": "application/json", "Authorization": "Bearer $token"},
-        body: json.encode({
-          'carbs': recipe.carbs,
-          'sugar': recipe.sugar,
-        }),
-      ).timeout(const Duration(seconds: 10)); // Add timeout
-      
-      debugPrint('Response status: ${res.statusCode}');
-      debugPrint('Response body: ${res.body}');
-      
-      if (res.statusCode == 200) {
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Added ${recipe.carbs}g carbs and ${recipe.sugar}g sugar from ${recipe.title}!"),
@@ -62,13 +39,13 @@ class RecipeUtils {
           ),
         );
       } else {
-        throw Exception('Server returned ${res.statusCode}: ${res.body}');
+        throw Exception('Failed to update progress');
       }
     } catch (e) {
       debugPrint('Error adding recipe nutrition: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Failed to add nutrition: ${e.toString().contains('timeout') ? 'Connection timeout' : 'Server error'}"),
+          content: const Text("Failed to add nutrition to daily goals"),
           backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

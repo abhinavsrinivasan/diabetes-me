@@ -250,16 +250,14 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   Future<void> fetchProfile() async {
-    final token = await AuthService().getToken();
-    final response = await http.get(Uri.parse('$baseUrl/profile'), headers: {'Authorization': 'Bearer $token'});
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+    final data = await AuthService().getProfile();
+    if (data != null) {
       setState(() {
         profile = data;
         bioController.text = data['bio'] ?? '';
-        carbsController.text = data['goals']['carbs'].toString();
-        sugarController.text = data['goals']['sugar'].toString();
-        exerciseController.text = data['goals']['exercise'].toString();
+        carbsController.text = (data['goals']['carbs'] ?? 200).toString();
+        sugarController.text = (data['goals']['sugar'] ?? 50).toString();
+        exerciseController.text = (data['goals']['exercise'] ?? 30).toString();
       });
       _animationController.forward();
     }
@@ -268,21 +266,27 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   Future<void> saveGoals() async {
     _dismissKeyboard();
     
-    final token = await AuthService().getToken();
-    final res = await http.post(
-      Uri.parse('$baseUrl/goals'),
-      headers: {"Content-Type": "application/json", "Authorization": "Bearer $token"},
-      body: json.encode({
-        "carbs": int.parse(carbsController.text),
-        "sugar": int.parse(sugarController.text),
-        "exercise": int.parse(exerciseController.text),
-      }),
-    );
-    if (res.statusCode == 200) {
+    final success = await AuthService().updateGoals({
+      'carbs': int.parse(carbsController.text),
+      'sugar': int.parse(sugarController.text),
+      'exercise': int.parse(exerciseController.text),
+    });
+    
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text("Goals updated successfully!"),
           backgroundColor: Colors.green[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      fetchProfile();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Failed to update goals"),
+          backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),

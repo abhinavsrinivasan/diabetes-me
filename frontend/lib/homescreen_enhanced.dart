@@ -744,26 +744,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.qr_code_scanner, color: Colors.deepPurple),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
-                          );
-                        },
-                        tooltip: 'Scan Barcode',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.shopping_cart_outlined, color: Colors.deepPurple),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const GroceryListScreen()),
-                          );
-                        },
-                        tooltip: 'Grocery List',
-                      ),
-                      IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.deepPurple),
                         onPressed: loadSupabaseRecipes,
                         tooltip: 'Refresh',
