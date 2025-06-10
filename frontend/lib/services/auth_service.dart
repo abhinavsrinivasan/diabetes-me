@@ -12,44 +12,61 @@ class AuthService {
   // Check if user is logged in
   bool get isLoggedIn => currentUser != null;
 
-  // Sign up with email and password
-  Future<bool> signup(String email, String password, {String? name}) async {
-  try {
-    final response = await _supabase.auth.signUp(
-      email: email,
-      password: password,
-      data: name != null ? {'name': name} : null,
-    );
+  // Sign up with email and password - Modified to handle email confirmation
+  Future<AuthResult> signup(String email, String password, {String? name}) async {
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: name != null ? {'name': name} : null,
+        emailRedirectTo: null, // This prevents localhost redirects
+      );
 
-    if (response.user != null) {
-      // ✅ Add this after successful signup
+      if (response.user != null) {
+        // Check if email confirmation is required
+        if (response.session == null) {
+          // Email confirmation required
+          return AuthResult.emailConfirmationRequired(email);
+        } else {
+          // Email confirmation not required (auto-confirmed)
+          await _createUserProfile(response.user!, email, name);
+          await _storage.write(
+            key: 'supabase_session',
+            value: response.session!.accessToken,
+          );
+          return AuthResult.success();
+        }
+      }
+      return AuthResult.error('Failed to create account');
+    } catch (e) {
+      print('Signup error: $e');
+      if (e.toString().contains('Email not confirmed')) {
+        return AuthResult.emailConfirmationRequired(email);
+      }
+      return AuthResult.error('Failed to create account: ${e.toString()}');
+    }
+  }
+
+  // Create user profile after successful signup
+  Future<void> _createUserProfile(User user, String email, String? name) async {
+    try {
       await _supabase.from('profiles').insert({
-        'id': response.user!.id,
+        'id': user.id,
         'email': email,
         'name': name ?? '',
       });
 
       await _supabase.from('goals').insert({
-        'user_id': response.user!.id,
+        'user_id': user.id,
       });
-
-      await _storage.write(
-        key: 'supabase_session',
-        value: response.session?.accessToken,
-      );
-      return true;
+    } catch (e) {
+      print('Error creating user profile: $e');
+      // Don't throw here, profile creation can be retried later
     }
-    return false;
-  } catch (e) {
-    print('Signup error: $e');
-    return false;
   }
-}
 
-
-
-  // Sign in with email and password
-  Future<bool> login(String email, String password) async {
+  // Sign in with email and password - Updated error handling
+  Future<AuthResult> login(String email, String password) async {
     try {
       final response = await _supabase.auth.signInWithPassword(
         email: email,
@@ -57,13 +74,80 @@ class AuthService {
       );
       
       if (response.user != null && response.session != null) {
+        // Check if email is confirmed
+        if (response.user!.emailConfirmedAt == null) {
+          return AuthResult.emailConfirmationRequired(email);
+        }
+        
         // Store session token
         await _storage.write(key: 'supabase_session', value: response.session!.accessToken);
-        return true;
+        return AuthResult.success();
       }
-      return false;
+      return AuthResult.error('Invalid email or password');
     } catch (e) {
       print('Login error: $e');
+      if (e.toString().contains('Email not confirmed')) {
+        return AuthResult.emailConfirmationRequired(email);
+      } else if (e.toString().contains('Invalid login credentials')) {
+        return AuthResult.error('Invalid email or password');
+      }
+      return AuthResult.error('Login failed: ${e.toString()}');
+    }
+  }
+
+  // Resend email confirmation
+  Future<bool> resendEmailConfirmation(String email) async {
+    try {
+      await _supabase.auth.resend(
+        type: OtpType.signup,
+        email: email,
+        emailRedirectTo: null, // Prevent localhost redirect
+      );
+      return true;
+    } catch (e) {
+      print('Resend confirmation error: $e');
+      return false;
+    }
+  }
+
+  // Send password reset email - Updated to prevent localhost redirects
+  Future<bool> sendPasswordResetEmail(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: null, // This prevents localhost redirects for now
+      );
+      return true;
+    } catch (e) {
+      print('Password reset error: $e');
+      return false;
+    }
+  }
+
+  // Verify OTP (for password reset or email confirmation)
+  Future<bool> verifyOTP(String email, String token, {OtpType type = OtpType.recovery}) async {
+    try {
+      final response = await _supabase.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: type,
+      );
+      return response.user != null;
+    } catch (e) {
+      print('OTP verification error: $e');
+      return false;
+    }
+  }
+
+  // Update password
+  Future<bool> updatePassword(String newPassword) async {
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+      return true;
+    } catch (e) {
+      print('Update password error: $e');
       return false;
     }
   }
@@ -234,48 +318,6 @@ class AuthService {
     }
   }
 
-  // Send password reset email
-  Future<bool> sendPasswordResetEmail(String email) async {
-    try {
-      await _supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo: 'com.diabetesandme.app://reset-password',
-      );
-      return true;
-    } catch (e) {
-      print('Password reset error: $e');
-      return false;
-    }
-  }
-
-  // Verify OTP (for password reset)
-  Future<bool> verifyOTP(String email, String token) async {
-    try {
-      final response = await _supabase.auth.verifyOTP(
-        email: email,
-        token: token,
-        type: OtpType.recovery,
-      );
-      return response.user != null;
-    } catch (e) {
-      print('OTP verification error: $e');
-      return false;
-    }
-  }
-
-  // Update password
-  Future<bool> updatePassword(String newPassword) async {
-    try {
-      await _supabase.auth.updateUser(
-        UserAttributes(password: newPassword),
-      );
-      return true;
-    } catch (e) {
-      print('Update password error: $e');
-      return false;
-    }
-  }
-
   // Sign out
   Future<void> logout() async {
     await _supabase.auth.signOut();
@@ -299,5 +341,43 @@ class AuthService {
     } catch (e) {
       print('Session restore error: $e');
     }
+  }
+}
+
+// Auth result class to handle different outcomes
+class AuthResult {
+  final bool isSuccess;
+  final bool needsEmailConfirmation;
+  final String? email;
+  final String? errorMessage;
+
+  AuthResult._({
+    required this.isSuccess,
+    required this.needsEmailConfirmation,
+    this.email,
+    this.errorMessage,
+  });
+
+  factory AuthResult.success() {
+    return AuthResult._(
+      isSuccess: true,
+      needsEmailConfirmation: false,
+    );
+  }
+
+  factory AuthResult.emailConfirmationRequired(String email) {
+    return AuthResult._(
+      isSuccess: false,
+      needsEmailConfirmation: true,
+      email: email,
+    );
+  }
+
+  factory AuthResult.error(String message) {
+    return AuthResult._(
+      isSuccess: false,
+      needsEmailConfirmation: false,
+      errorMessage: message,
+    );
   }
 }

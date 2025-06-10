@@ -5,6 +5,7 @@ import 'grocery_list_screen.dart';
 import 'barcode_scanner_screen.dart';
 import 'services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/email_verification_screen.dart'; // Import for EmailVerificationScreen
 import 'package:google_fonts/google_fonts.dart';
 import 'config/env_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -67,11 +68,12 @@ class DiabetesMeApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       initialRoute: '/',
       routes: {
-        '/': (context) => const AuthWrapper(),
-        '/home': (context) => const MainAppScaffold(),
-        '/grocery': (context) => const GroceryListScreen(),
-        '/scanner': (context) => const BarcodeScannerScreen(),
-      },
+  '/': (context) => const AuthWrapper(),
+  '/home': (context) => const MainAppScaffold(),
+  '/email-verification': (context) => EmailVerificationScreen(email: ''),
+  '/grocery': (context) => const GroceryListScreen(),
+  '/scanner': (context) => const BarcodeScannerScreen(),
+},
     );
   }
 }

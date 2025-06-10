@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../services/auth_service.dart';
 import '../../../features/auth/screens/forgot_password_screen.dart';
+import '../../../features/auth/screens/email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -85,13 +86,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     final name = _nameController.text.trim();
 
     if (_isLogin) {
-      bool success = await _authService.login(email, password);
+      final result = await _authService.login(email, password);
       setState(() => _loading = false);
 
-      if (success) {
+      if (result.isSuccess) {
         Navigator.pushReplacementNamed(context, '/home');
+      } else if (result.needsEmailConfirmation) {
+        _navigateToEmailVerification(result.email!);
       } else {
-        _showErrorSnackBar("Invalid email or password. Please try again.");
+        _showErrorSnackBar(result.errorMessage ?? "Login failed. Please try again.");
       }
     } else {
       // Validate signup fields
@@ -101,17 +104,29 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         return;
       }
 
-      bool success = await _authService.signup(email, password, name: name);
+      final result = await _authService.signup(email, password, name: name);
       setState(() => _loading = false);
 
-      if (success) {
-        _showSuccessSnackBar("Account created successfully! You can now sign in.");
-        setState(() => _isLogin = true);
-        _clearFields();
+      if (result.isSuccess) {
+        // Auto-login was successful (email confirmation disabled)
+        _showSuccessSnackBar("Account created successfully!");
+        Navigator.pushReplacementNamed(context, '/home');
+      } else if (result.needsEmailConfirmation) {
+        // Email confirmation required
+        _navigateToEmailVerification(result.email!);
       } else {
-        _showErrorSnackBar("This email is already registered or an error occurred.");
+        _showErrorSnackBar(result.errorMessage ?? "This email is already registered or an error occurred.");
       }
     }
+  }
+
+  void _navigateToEmailVerification(String email) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EmailVerificationScreen(email: email),
+      ),
+    );
   }
 
   bool _isValidEmail(String email) {
@@ -423,28 +438,28 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
 
                             if (_isLogin) ...[
-  const SizedBox(height: 16),
-  Center(
-    child: TextButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ForgotPasswordScreen(),
-          ),
-        );
-      },
-      child: Text(
-        'Forgot Password?',
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    ),
-  ),
-],
+                              const SizedBox(height: 16),
+                              Center(
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const ForgotPasswordScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    'Forgot Password?',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ]
                         ),
                       ),
