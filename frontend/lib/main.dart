@@ -21,7 +21,7 @@ void main() async {
   try {
     EnvConfig.validateApiKeys();
     EnvConfig.printDebugInfo();
-  } catch (e) {
+} catch (e) {
     print('❌ Environment Error: $e');
   }
   runApp(const DiabetesMeApp());
@@ -56,7 +56,6 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
     
     // Handle app launch from deep link (when app is closed)
     try {
-      // FIXED: Use the correct method name
       final initialLink = await _appLinks.getInitialAppLink();
       if (initialLink != null) {
         print('📱 App launched with deep link: $initialLink');
@@ -70,7 +69,6 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
     }
     
     // Handle deep link when app is already running
-    // FIXED: Use the correct stream name
     _linkSubscription = _appLinks.allUriLinkStream.listen(
       (Uri uri) {
         print('📱 Received deep link while app running: $uri');
@@ -110,7 +108,6 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
     try {
       print('🔄 Setting Supabase session for email confirmation...');
       
-      // FIXED: Use setSession with proper Session object
       final response = await Supabase.instance.client.auth.setSession(accessToken);
       
       if (response.session != null) {
@@ -141,7 +138,6 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
 
   Future<void> _handlePasswordReset(String accessToken, String refreshToken) async {
     try {
-      // FIXED: Use setSession with proper Session object
       final response = await Supabase.instance.client.auth.setSession(accessToken);
       
       if (response.session != null) {
@@ -237,7 +233,7 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
   }
 }
 
-// New Email Confirmation Success Screen
+// FIXED: Updated Email Confirmation Success Screen
 class EmailConfirmationSuccessScreen extends StatefulWidget {
   final VoidCallback onContinue;
 
@@ -312,116 +308,122 @@ class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSucces
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Success Icon with Animation
-                  ScaleTransition(
-                    scale: _scaleAnimation,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.green.shade400,
-                            Colors.green.shade600,
+          child: SingleChildScrollView( // FIX: Added SingleChildScrollView
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - 
+                           MediaQuery.of(context).padding.top,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Success Icon with Animation
+                    ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: Container(
+                        width: 100, // FIX: Reduced size
+                        height: 100, // FIX: Reduced size
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.green.shade400,
+                              Colors.green.shade600,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(50), // FIX: Adjusted for new size
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.green.withOpacity(0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(60),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.green.withOpacity(0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
+                        child: const Icon(
+                          Icons.check,
+                          size: 50, // FIX: Reduced size
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 24), // FIX: Reduced spacing
+                    
+                    // Success Title
+                    const Text(
+                      'Email Confirmed!',
+                      style: TextStyle(
+                        fontSize: 24, // FIX: Reduced font size
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 12), // FIX: Reduced spacing
+                    
+                    // Success Message
+                    Text(
+                      'Welcome to Diabetes&Me! Your account has been successfully verified.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14, // FIX: Reduced font size
+                        color: Colors.grey[600],
+                        height: 1.5,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 32), // FIX: Reduced spacing
+                    
+                    // Progress Indicator
+                    Column(
+                      children: [
+                        CircularProgressIndicator(
+                          strokeWidth: 3,
+                          backgroundColor: Colors.grey[200],
+                          valueColor: AlwaysStoppedAnimation(Colors.green.shade600),
+                        ),
+                        const SizedBox(height: 12), // FIX: Reduced spacing
+                        Text(
+                          'Taking you to your dashboard...',
+                          style: TextStyle(
+                            fontSize: 12, // FIX: Reduced font size
+                            color: Colors.grey[600],
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        size: 60,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Success Title
-                  const Text(
-                    'Email Confirmed!',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Success Message
-                  Text(
-                    'Welcome to Diabetes&Me! Your account has been successfully verified.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      height: 1.5,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 40),
-                  
-                  // Progress Indicator
-                  Column(
-                    children: [
-                      CircularProgressIndicator(
-                        strokeWidth: 3,
-                        backgroundColor: Colors.grey[200],
-                        valueColor: AlwaysStoppedAnimation(Colors.green.shade600),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Taking you to your dashboard...',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
                         ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 40),
-                  
-                  // Continue Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: widget.onContinue,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade600,
-                        foregroundColor: Colors.white,
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 32), // FIX: Reduced spacing
+                    
+                    // Continue Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48, // FIX: Reduced height
+                      child: ElevatedButton(
+                        onPressed: widget.onContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Continue to App',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        child: const Text(
+                          'Continue to App',
+                          style: TextStyle(
+                            fontSize: 14, // FIX: Reduced font size
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -164,26 +164,30 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
       body: SafeArea(
         child: SlideTransition(
           position: _slideAnimation,
-          child: Padding(
+          child: SingleChildScrollView( // FIX: Wrap everything in SingleChildScrollView
             padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                const SizedBox(height: 40),
-                
-                // Header illustration
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - 
+                           MediaQuery.of(context).padding.top - 48, // Account for padding
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // FIX: Changed from center
+                children: [
+                  // Header section
+                  Column( // FIX: Wrap header content in Column
                     children: [
+                      const SizedBox(height: 40),
+                      
+                      // Header illustration
                       AnimatedBuilder(
                         animation: _pulseAnimation,
                         builder: (context, child) {
                           return Transform.scale(
                             scale: _pulseAnimation.value,
                             child: Container(
-                              width: 120,
-                              height: 120,
+                              width: 100, // FIX: Reduced size
+                              height: 100, // FIX: Reduced size
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
@@ -193,7 +197,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                                     const Color(0xFFFF8A5C),
                                   ],
                                 ),
-                                borderRadius: BorderRadius.circular(60),
+                                borderRadius: BorderRadius.circular(50), // FIX: Adjusted for new size
                                 boxShadow: [
                                   BoxShadow(
                                     color: const Color(0xFFFF6B35).withOpacity(0.3),
@@ -204,27 +208,27 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                               ),
                               child: const Icon(
                                 Icons.mail_outline,
-                                size: 60,
+                                size: 50, // FIX: Reduced size
                                 color: Colors.white,
                               ),
                             ),
                           );
                         },
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24), // FIX: Reduced spacing
                       const Text(
                         'Check Your Email',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 24, // FIX: Reduced font size
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12), // FIX: Reduced spacing
                       Text(
                         'We\'ve sent a verification link to:',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14, // FIX: Reduced font size
                           color: Colors.grey[600],
                         ),
                         textAlign: TextAlign.center,
@@ -245,7 +249,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                         child: Text(
                           widget.email,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 14, // FIX: Reduced font size
                             fontWeight: FontWeight.w600,
                             color: Color(0xFFFF6B35),
                           ),
@@ -253,15 +257,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                       ),
                     ],
                   ),
-                ),
-                
-                // Instructions
-                Expanded(
-                  flex: 2,
-                  child: Column(
+                  
+                  // Middle section with instructions
+                  Column( // FIX: Wrap instructions in Column
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(16), // FIX: Reduced padding
                         decoration: BoxDecoration(
                           color: Colors.blue[50],
                           borderRadius: BorderRadius.circular(16),
@@ -277,52 +278,52 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                                 Icon(
                                   Icons.info_outline,
                                   color: Colors.blue[700],
-                                  size: 24,
+                                  size: 20, // FIX: Reduced icon size
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 8), // FIX: Reduced spacing
                                 const Text(
                                   'Next Steps',
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 16, // FIX: Reduced font size
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black87,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12), // FIX: Reduced spacing
                             _buildInstructionStep(
                               '1.',
                               'Check your email app (including spam folder)',
                               Icons.email_outlined,
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8), // FIX: Reduced spacing
                             _buildInstructionStep(
                               '2.',
                               'Look for an email from Diabetes&Me',
                               Icons.search_outlined,
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8), // FIX: Reduced spacing
                             _buildInstructionStep(
                               '3.',
                               'Tap the "Confirm Email" button in the email',
                               Icons.link_outlined,
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8), // FIX: Reduced spacing
                             _buildInstructionStep(
                               '4.',
-                              'Return to this app - you\'ll be signed in automatically!',
+                              'You\'ll be signed in automatically!',
                               Icons.login_outlined,
                             ),
                           ],
                         ),
                       ),
                       
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16), // FIX: Reduced spacing
                       
                       // Status message
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12), // FIX: Reduced padding
                         decoration: BoxDecoration(
                           color: Colors.green[50],
                           borderRadius: BorderRadius.circular(12),
@@ -330,13 +331,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.autorenew, color: Colors.green[600], size: 20),
-                            const SizedBox(width: 12),
+                            Icon(Icons.autorenew, color: Colors.green[600], size: 18), // FIX: Reduced size
+                            const SizedBox(width: 8), // FIX: Reduced spacing
                             Expanded(
                               child: Text(
                                 'Waiting for email confirmation...',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 12, // FIX: Reduced font size
                                   color: Colors.green[800],
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -346,106 +347,106 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                         ),
                       ),
                       
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12), // FIX: Reduced spacing
                       
                       // Didn't receive email section
                       Text(
                         'Didn\'t receive the email?',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14, // FIX: Reduced font size
                           color: Colors.grey[700],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8), // FIX: Reduced spacing
                       Text(
                         'Check your spam folder or try resending',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12, // FIX: Reduced font size
                           color: Colors.grey[600],
                         ),
                         textAlign: TextAlign.center,
                       ),
                     ],
                   ),
-                ),
-                
-                // Action buttons
-                Column(
-                  children: [
-                    // Resend button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: OutlinedButton.icon(
-                        onPressed: _canResend && !_isResending ? _resendEmail : null,
-                        icon: _isResending
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFFFF6B35),
+                  
+                  // Bottom action buttons
+                  Column(
+                    children: [
+                      // Resend button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48, // FIX: Reduced height
+                        child: OutlinedButton.icon(
+                          onPressed: _canResend && !_isResending ? _resendEmail : null,
+                          icon: _isResending
+                              ? const SizedBox(
+                                  width: 16, // FIX: Reduced size
+                                  height: 16, // FIX: Reduced size
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFFFF6B35),
+                                    ),
                                   ),
-                                ),
-                              )
-                            : const Icon(Icons.refresh),
-                        label: Text(
-                          _isResending
-                              ? 'Sending...'
-                              : _canResend
-                                  ? 'Resend Email'
-                                  : 'Resend in ${_resendCooldown}s',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                                )
+                              : const Icon(Icons.refresh),
+                          label: Text(
+                            _isResending
+                                ? 'Sending...'
+                                : _canResend
+                                    ? 'Resend Email'
+                                    : 'Resend in ${_resendCooldown}s',
+                            style: const TextStyle(
+                              fontSize: 14, // FIX: Reduced font size
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFFF6B35),
-                          side: const BorderSide(
-                            color: Color(0xFFFF6B35),
-                            width: 2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Back to login button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        onPressed: _goToLogin,
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text(
-                          'Back to Sign In',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF6B35),
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFFF6B35),
+                            side: const BorderSide(
+                              color: Color(0xFFFF6B35),
+                              width: 2,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ],
+                      
+                      const SizedBox(height: 12), // FIX: Reduced spacing
+                      
+                      // Back to login button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48, // FIX: Reduced height
+                        child: ElevatedButton.icon(
+                          onPressed: _goToLogin,
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text(
+                            'Back to Sign In',
+                            style: TextStyle(
+                              fontSize: 14, // FIX: Reduced font size
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF6B35),
+                            foregroundColor: Colors.white,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -457,35 +458,35 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     return Row(
       children: [
         Container(
-          width: 24,
-          height: 24,
+          width: 20, // FIX: Reduced size
+          height: 20, // FIX: Reduced size
           decoration: BoxDecoration(
             color: Colors.blue[700],
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10), // FIX: Adjusted for new size
           ),
           child: Center(
             child: Text(
               number,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: 10, // FIX: Reduced font size
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8), // FIX: Reduced spacing
         Icon(
           icon,
           color: Colors.blue[700],
-          size: 20,
+          size: 16, // FIX: Reduced size
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6), // FIX: Reduced spacing
         Expanded(
           child: Text(
             text,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12, // FIX: Reduced font size
               color: Colors.grey[700],
             ),
           ),
