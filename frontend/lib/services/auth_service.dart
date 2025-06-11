@@ -19,7 +19,7 @@ class AuthService {
         email: email,
         password: password,
         data: name != null ? {'name': name} : null,
-        // Don't set emailRedirectTo to prevent auto-redirect issues
+        emailRedirectTo: 'com.abhinavsrinivasan.diabetesme://login-callback',
       );
 
       if (response.user != null) {
@@ -103,12 +103,13 @@ class AuthService {
     }
   }
 
-  // Resend email confirmation
+  // Resend email confirmation with proper redirect
   Future<bool> resendEmailConfirmation(String email) async {
     try {
       await _supabase.auth.resend(
         type: OtpType.signup,
         email: email,
+        emailRedirectTo: 'com.abhinavsrinivasan.diabetesme://login-callback',
       );
       return true;
     } catch (e) {
@@ -117,10 +118,13 @@ class AuthService {
     }
   }
 
-  // Send password reset email
+  // Send password reset email with proper redirect
   Future<bool> sendPasswordResetEmail(String email) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(email);
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'com.abhinavsrinivasan.diabetesme://login-callback',
+      );
       return true;
     } catch (e) {
       print('Password reset error: $e');

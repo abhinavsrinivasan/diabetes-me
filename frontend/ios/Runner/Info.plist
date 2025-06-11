@@ -47,5 +47,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	
+	<!-- Deep Link Configuration for Email Confirmation -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.abhinavsrinivasan.diabetesme</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.abhinavsrinivasan.diabetesme</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

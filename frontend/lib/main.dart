@@ -1,14 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'homescreen_enhanced.dart'; // ✅ Updated import
+import 'homescreen_enhanced.dart';
 import 'profilescreen.dart';
 import 'grocery_list_screen.dart';
 import 'barcode_scanner_screen.dart';
 import 'services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
-import 'features/auth/screens/email_verification_screen.dart'; // Import for EmailVerificationScreen
+import 'features/auth/screens/email_verification_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'config/env_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:app_links/app_links.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,13 +27,168 @@ void main() async {
   runApp(const DiabetesMeApp());
 }
 
-class DiabetesMeApp extends StatelessWidget {
+class DiabetesMeApp extends StatefulWidget {
   const DiabetesMeApp({super.key});
+
+  @override
+  State<DiabetesMeApp> createState() => _DiabetesMeAppState();
+}
+
+class _DiabetesMeAppState extends State<DiabetesMeApp> {
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initDeepLinks() async {
+    _appLinks = AppLinks();
+    
+    // Handle app launch from deep link (when app is closed)
+    try {
+      final initialLink = await _appLinks.getInitialLink();
+      if (initialLink != null) {
+        print('📱 App launched with deep link: $initialLink');
+        // Wait a bit for the app to fully initialize
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _handleDeepLink(initialLink);
+        });
+      }
+    } catch (e) {
+      print('❌ Error getting initial link: $e');
+    }
+    
+    // Handle deep link when app is already running
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      (Uri uri) {
+        print('📱 Received deep link while app running: $uri');
+        _handleDeepLink(uri);
+      },
+      onError: (err) {
+        print('❌ Deep link error: $err');
+      },
+    );
+  }
+
+  void _handleDeepLink(Uri uri) async {
+    print('🔗 Processing deep link: $uri');
+    print('🔗 Scheme: ${uri.scheme}, Host: ${uri.host}');
+    print('🔗 Query parameters: ${uri.queryParameters}');
+    
+    if (uri.scheme == 'com.abhinavsrinivasan.diabetesme' && 
+        uri.host == 'login-callback') {
+      
+      final accessToken = uri.queryParameters['access_token'];
+      final refreshToken = uri.queryParameters['refresh_token'];
+      final type = uri.queryParameters['type'];
+      
+      print('🔗 Access token present: ${accessToken != null}');
+      print('🔗 Refresh token present: ${refreshToken != null}');
+      print('🔗 Type: $type');
+      
+      if (type == 'signup' && accessToken != null && refreshToken != null) {
+        await _handleEmailConfirmation(accessToken, refreshToken);
+      } else if (type == 'recovery' && accessToken != null && refreshToken != null) {
+        await _handlePasswordReset(accessToken, refreshToken);
+      }
+    }
+  }
+
+  Future<void> _handleEmailConfirmation(String accessToken, String refreshToken) async {
+    try {
+      print('🔄 Setting Supabase session for email confirmation...');
+      
+      // FIXED: Use setSession with proper Session object
+      final response = await Supabase.instance.client.auth.setSession(accessToken);
+      
+      if (response.session != null) {
+        print('✅ Email confirmed and user logged in!');
+        
+        // Show confirmation success screen
+        if (mounted && _navigatorKey.currentState != null) {
+          _navigatorKey.currentState!.pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => EmailConfirmationSuccessScreen(
+                onContinue: () {
+                  Navigator.of(context).pushReplacementNamed('/home');
+                },
+              ),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        throw Exception('Failed to set session');
+      }
+      
+    } catch (e) {
+      print('❌ Error setting session: $e');
+      _showErrorDialog('Error confirming email: $e');
+    }
+  }
+
+  Future<void> _handlePasswordReset(String accessToken, String refreshToken) async {
+    try {
+      // FIXED: Use setSession with proper Session object
+      final response = await Supabase.instance.client.auth.setSession(accessToken);
+      
+      if (response.session != null) {
+        print('🔄 Password reset session set');
+        
+        // Navigate to password reset screen (you can create this later)
+        if (mounted && _navigatorKey.currentContext != null) {
+          ScaffoldMessenger.of(_navigatorKey.currentContext!).showSnackBar(
+            const SnackBar(
+              content: Text('Password reset link verified. Please update your password.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error setting recovery session: $e');
+      _showErrorDialog('Error processing password reset: $e');
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    if (mounted && _navigatorKey.currentContext != null) {
+      showDialog(
+        context: _navigatorKey.currentContext!,
+        builder: (context) => AlertDialog(
+          title: const Text('Email Confirmation Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Navigate back to login
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              },
+              child: const Text('Back to Login'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Diabetes&Me',
+      navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
@@ -74,6 +231,200 @@ class DiabetesMeApp extends StatelessWidget {
         '/grocery': (context) => const GroceryListScreen(),
         '/scanner': (context) => const BarcodeScannerScreen(),
       },
+    );
+  }
+}
+
+// New Email Confirmation Success Screen
+class EmailConfirmationSuccessScreen extends StatefulWidget {
+  final VoidCallback onContinue;
+
+  const EmailConfirmationSuccessScreen({
+    super.key,
+    required this.onContinue,
+  });
+
+  @override
+  State<EmailConfirmationSuccessScreen> createState() => _EmailConfirmationSuccessScreenState();
+}
+
+class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSuccessScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _scaleController;
+  late AnimationController _fadeController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    
+    _scaleAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _scaleController,
+      curve: Curves.elasticOut,
+    ));
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    ));
+
+    // Start animations
+    _scaleController.forward();
+    _fadeController.forward();
+
+    // Auto-proceed to home after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        widget.onContinue();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Success Icon with Animation
+                  ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.green.shade400,
+                            Colors.green.shade600,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(60),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        size: 60,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Success Title
+                  const Text(
+                    'Email Confirmed!',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Success Message
+                  Text(
+                    'Welcome to Diabetes&Me! Your account has been successfully verified.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      height: 1.5,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 40),
+                  
+                  // Progress Indicator
+                  Column(
+                    children: [
+                      CircularProgressIndicator(
+                        strokeWidth: 3,
+                        backgroundColor: Colors.grey[200],
+                        valueColor: AlwaysStoppedAnimation(Colors.green.shade600),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Taking you to your dashboard...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 40),
+                  
+                  // Continue Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: widget.onContinue,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Continue to App',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -133,7 +484,7 @@ class _MainAppScaffoldState extends State<MainAppScaffold> {
   int _currentIndex = 0;
 
   final List<Widget> _tabs = [
-    EnhancedHomeScreen(), // ✅ Updated to use enhanced screen
+    EnhancedHomeScreen(),
     const GroceryListScreen(),
     const BarcodeScannerScreen(),
     const ProfileScreen(),
