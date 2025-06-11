@@ -26,3 +26,14 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # Add assets configuration - points to frontend/assets/ directory
+  assets:
+    - assets/
+  
+  # Optional: Configure app icon
+  # You can use flutter_launcher_icons package to generate all sizes
+  # flutter_icons:
+  #   android: true
+  #   ios: true
+  #   image_path: "assets/appicon.png"

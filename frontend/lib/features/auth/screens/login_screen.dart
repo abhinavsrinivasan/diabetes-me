@@ -155,13 +155,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  void _clearFields() {
-    _emailController.clear();
-    _passwordController.clear();
-    _nameController.clear();
-    _phoneController.clear();
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -215,60 +208,67 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             child: IntrinsicHeight(
               child: Column(
                 children: [
-                  // Top Section with Image and Toggle
+                  // Top Section with Logo and Toggle
                   Expanded(
                     flex: 4,
                     child: FadeTransition(
                       opacity: _fadeAnimation,
                       child: Container(
                         width: double.infinity,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFFFF8F3),
-                              Color(0xFFFFE8D6),
-                            ],
-                          ),
-                        ),
+                        color: Colors.transparent, // Transparent background
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Food Image
-                            Container(
-                              width: 180,
-                              height: 180,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(90),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(90),
-                                child: Image.network(
-                                  'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=400&fit=crop&crop=center',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Container(
+                            const SizedBox(height: 40), // Move logo down
+                            // Your Official Logo - just the logo, no white circle
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(90),
+                              child: Image.asset(
+                                'assets/appicon.png', // This should point to your uploaded logo
+                                width: 180,
+                                height: 180,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  // Fallback to a styled container if logo not found
+                                  return Container(
+                                    width: 180,
+                                    height: 180,
                                     decoration: BoxDecoration(
-                                      color: Colors.orange[100],
+                                      color: const Color(0xFF4A90E2), // Blue background like your logo
                                       borderRadius: BorderRadius.circular(90),
                                     ),
                                     child: const Icon(
-                                      Icons.restaurant_menu,
+                                      Icons.local_dining,
                                       size: 80,
-                                      color: Colors.orange,
+                                      color: Colors.white,
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 6), // Reduced from 12 to 6
+                            
+                            // App Name
+                            const Text(
+                              'Diabetes&Me',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFF6B35),
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Your diabetes-friendly lifestyle companion',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 32),
                             
                             // Sign In / Sign Up Toggle
                             Container(
@@ -402,7 +402,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               const SizedBox(height: 8),
                             ],
 
-                            const Spacer(),
+                              const SizedBox(height: 16), // Reduced spacing before button
 
                             // Submit Button
                             Container(

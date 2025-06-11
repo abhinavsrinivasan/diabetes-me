@@ -12,42 +12,28 @@ class AuthService {
   // Check if user is logged in
   bool get isLoggedIn => currentUser != null;
 
-  // Sign up with email and password - Modified to handle email confirmation
+  // Sign up with email and password - Always requires email confirmation
   Future<AuthResult> signup(String email, String password, {String? name}) async {
     try {
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
         data: name != null ? {'name': name} : null,
-        emailRedirectTo: null, // This prevents localhost redirects
+        // Don't set emailRedirectTo to prevent auto-redirect issues
       );
 
       if (response.user != null) {
-        // Check if email confirmation is required
-        if (response.session == null) {
-          // Email confirmation required
-          return AuthResult.emailConfirmationRequired(email);
-        } else {
-          // Email confirmation not required (auto-confirmed)
-          await _createUserProfile(response.user!, email, name);
-          await _storage.write(
-            key: 'supabase_session',
-            value: response.session!.accessToken,
-          );
-          return AuthResult.success();
-        }
+        // Email confirmation is always required now
+        return AuthResult.emailConfirmationRequired(email);
       }
       return AuthResult.error('Failed to create account');
     } catch (e) {
       print('Signup error: $e');
-      if (e.toString().contains('Email not confirmed')) {
-        return AuthResult.emailConfirmationRequired(email);
-      }
       return AuthResult.error('Failed to create account: ${e.toString()}');
     }
   }
 
-  // Create user profile after successful signup
+  // Create user profile after successful email confirmation
   Future<void> _createUserProfile(User user, String email, String? name) async {
     try {
       await _supabase.from('profiles').insert({
@@ -65,7 +51,7 @@ class AuthService {
     }
   }
 
-  // Sign in with email and password - Updated error handling
+  // Sign in with email and password - Checks email confirmation
   Future<AuthResult> login(String email, String password) async {
     try {
       final response = await _supabase.auth.signInWithPassword(
@@ -78,6 +64,9 @@ class AuthService {
         if (response.user!.emailConfirmedAt == null) {
           return AuthResult.emailConfirmationRequired(email);
         }
+        
+        // Create profile if it doesn't exist (for users who confirmed email outside app)
+        await _ensureUserProfileExists(response.user!, email);
         
         // Store session token
         await _storage.write(key: 'supabase_session', value: response.session!.accessToken);
@@ -95,13 +84,31 @@ class AuthService {
     }
   }
 
+  // Ensure user profile exists (helper method)
+  Future<void> _ensureUserProfileExists(User user, String email) async {
+    try {
+      // Check if profile exists
+      final existingProfile = await _supabase
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (existingProfile == null) {
+        // Create profile
+        await _createUserProfile(user, email, user.userMetadata?['name']);
+      }
+    } catch (e) {
+      print('Error ensuring profile exists: $e');
+    }
+  }
+
   // Resend email confirmation
   Future<bool> resendEmailConfirmation(String email) async {
     try {
       await _supabase.auth.resend(
         type: OtpType.signup,
         email: email,
-        emailRedirectTo: null, // Prevent localhost redirect
       );
       return true;
     } catch (e) {
@@ -110,13 +117,10 @@ class AuthService {
     }
   }
 
-  // Send password reset email - Updated to prevent localhost redirects
+  // Send password reset email
   Future<bool> sendPasswordResetEmail(String email) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo: null, // This prevents localhost redirects for now
-      );
+      await _supabase.auth.resetPasswordForEmail(email);
       return true;
     } catch (e) {
       print('Password reset error: $e');
@@ -151,6 +155,9 @@ class AuthService {
       return false;
     }
   }
+
+  // Listen to auth state changes
+  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
   // Get user profile
   Future<Map<String, dynamic>?> getProfile() async {

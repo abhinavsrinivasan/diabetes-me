@@ -68,12 +68,12 @@ class DiabetesMeApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       initialRoute: '/',
       routes: {
-  '/': (context) => const AuthWrapper(),
-  '/home': (context) => const MainAppScaffold(),
-  '/email-verification': (context) => EmailVerificationScreen(email: ''),
-  '/grocery': (context) => const GroceryListScreen(),
-  '/scanner': (context) => const BarcodeScannerScreen(),
-},
+        '/': (context) => const AuthWrapper(),
+        '/home': (context) => const MainAppScaffold(),
+        '/email-verification': (context) => EmailVerificationScreen(email: ''),
+        '/grocery': (context) => const GroceryListScreen(),
+        '/scanner': (context) => const BarcodeScannerScreen(),
+      },
     );
   }
 }
@@ -102,10 +102,18 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // Check if user is authenticated
+        // Check if user is authenticated AND email confirmed
         final session = Supabase.instance.client.auth.currentSession;
-        if (session != null) {
-          return const MainAppScaffold();
+        final user = Supabase.instance.client.auth.currentUser;
+        
+        if (session != null && user != null) {
+          // Check if email is confirmed
+          if (user.emailConfirmedAt != null) {
+            return const MainAppScaffold();
+          } else {
+            // User exists but email not confirmed
+            return EmailVerificationScreen(email: user.email ?? '');
+          }
         } else {
           return const LoginScreen();
         }

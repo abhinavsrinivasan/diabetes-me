@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
@@ -56,6 +57,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     // Start animations
     _pulseController.repeat(reverse: true);
     _slideController.forward();
+
+    // Listen for auth state changes (when email is confirmed)
+    _listenForEmailConfirmation();
   }
 
   @override
@@ -63,6 +67,18 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     _pulseController.dispose();
     _slideController.dispose();
     super.dispose();
+  }
+
+  void _listenForEmailConfirmation() {
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final user = data.session?.user;
+      if (user != null && user.emailConfirmedAt != null) {
+        // Email confirmed! Navigate to home
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+      }
+    });
   }
 
   Future<void> _resendEmail() async {
@@ -277,7 +293,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                             const SizedBox(height: 16),
                             _buildInstructionStep(
                               '1.',
-                              'Open your email app',
+                              'Check your email app (including spam folder)',
                               Icons.email_outlined,
                             ),
                             const SizedBox(height: 12),
@@ -289,13 +305,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                             const SizedBox(height: 12),
                             _buildInstructionStep(
                               '3.',
-                              'Tap the verification link in the email',
+                              'Tap the "Confirm Email" button in the email',
                               Icons.link_outlined,
                             ),
                             const SizedBox(height: 12),
                             _buildInstructionStep(
                               '4.',
-                              'Return here and sign in',
+                              'Return to this app - you\'ll be signed in automatically!',
                               Icons.login_outlined,
                             ),
                           ],
@@ -303,6 +319,34 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                       ),
                       
                       const SizedBox(height: 24),
+                      
+                      // Status message
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.green[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.autorenew, color: Colors.green[600], size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Waiting for email confirmation...',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.green[800],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
                       
                       // Didn't receive email section
                       Text(
