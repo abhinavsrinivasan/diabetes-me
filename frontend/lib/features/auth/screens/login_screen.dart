@@ -67,11 +67,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   Future<void> _loadRememberedCredentials() async {
     final rememberedEmail = await _authService.getRememberedEmail();
+    final rememberedPassword = await _authService.getRememberedPassword();
     final hasRememberMe = await _authService.hasRememberMe();
-    
+
     if (rememberedEmail != null) {
       setState(() {
         _emailController.text = rememberedEmail;
+        if (rememberedPassword != null) {
+          _passwordController.text = rememberedPassword;
+        }
         _rememberMe = hasRememberMe;
       });
     }
@@ -101,6 +105,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       final result = await _authService.login(
         _emailController.text.trim(),
         _passwordController.text,
+        rememberMe: _rememberMe,
       );
       setState(() => _loading = false);
       if (result.isSuccess) {

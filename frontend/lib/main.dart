@@ -94,14 +94,16 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
     print('🔗 Processing deep link: $uri');
     print('🔗 Scheme: ${uri.scheme}, Host: ${uri.host}');
     print('🔗 Query parameters: ${uri.queryParameters}');
-    
+
     if (uri.scheme == 'com.abhinavsrinivasan.diabetesme') {
-      if (uri.host == 'login-callback') {
+      final type = uri.queryParameters['type'];
+
+      if (type == 'recovery' || uri.host == 'password-reset') {
+        // Handle password reset regardless of host when type is recovery
+        await _handlePasswordReset(uri);
+      } else if (uri.host == 'login-callback') {
         // Handle email confirmation
         await _handleEmailConfirmation(uri);
-      } else if (uri.host == 'password-reset') {
-        // Handle password reset
-        await _handlePasswordReset(uri);
       }
     }
   }
@@ -539,6 +541,11 @@ class AuthWrapper extends StatelessWidget {
         // Check if user is authenticated AND email confirmed
         final session = Supabase.instance.client.auth.currentSession;
         final user = Supabase.instance.client.auth.currentUser;
+        final event = snapshot.data?.event;
+
+        if (event == AuthChangeEvent.passwordRecovery) {
+          return const PasswordResetScreen();
+        }
         
         if (session != null && user != null) {
           // Check if this is a password reset session

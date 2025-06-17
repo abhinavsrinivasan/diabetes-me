@@ -68,15 +68,17 @@ class AuthService {
         // Create profile if it doesn't exist (for users who confirmed email outside app)
         await _ensureUserProfileExists(response.user!, email);
         
-        // Store session token and remember me preference
+        // Store session token
         await _storage.write(key: 'supabase_session', value: response.session!.accessToken);
-        
-        // Handle Remember Me functionality
+
+        // Handle Remember Me functionality - also store password securely
         if (rememberMe) {
           await _storage.write(key: 'remember_email', value: email);
+          await _storage.write(key: 'remember_password', value: password);
           await _storage.write(key: 'remember_me', value: 'true');
         } else {
           await _storage.delete(key: 'remember_email');
+          await _storage.delete(key: 'remember_password');
           await _storage.delete(key: 'remember_me');
         }
         
@@ -99,6 +101,15 @@ class AuthService {
     final rememberMe = await _storage.read(key: 'remember_me');
     if (rememberMe == 'true') {
       return await _storage.read(key: 'remember_email');
+    }
+    return null;
+  }
+
+  // Get remembered password for auto-fill
+  Future<String?> getRememberedPassword() async {
+    final rememberMe = await _storage.read(key: 'remember_me');
+    if (rememberMe == 'true') {
+      return await _storage.read(key: 'remember_password');
     }
     return null;
   }
@@ -394,6 +405,7 @@ class AuthService {
     await _supabase.auth.signOut();
     await _storage.delete(key: 'supabase_session');
     await _storage.delete(key: 'remember_email');
+    await _storage.delete(key: 'remember_password');
     await _storage.delete(key: 'remember_me');
   }
 
