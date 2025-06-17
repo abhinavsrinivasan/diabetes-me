@@ -539,6 +539,11 @@ class AuthWrapper extends StatelessWidget {
         // Check if user is authenticated AND email confirmed
         final session = Supabase.instance.client.auth.currentSession;
         final user = Supabase.instance.client.auth.currentUser;
+        final event = snapshot.data?.event;
+
+        if (event == AuthChangeEvent.passwordRecovery) {
+          return const PasswordResetScreen();
+        }
         
         if (session != null && user != null) {
           // Check if this is a password reset session
