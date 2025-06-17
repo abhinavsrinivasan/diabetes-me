@@ -14,14 +14,20 @@ import 'package:app_links/app_links.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Supabase with deep linking disabled since we handle it manually
   await Supabase.initialize(
     url: const String.fromEnvironment('SUPABASE_URL'),
     anonKey: const String.fromEnvironment('SUPABASE_SERVICE_ROLE_KEY'),
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce, // Use PKCE flow for better security
+    ),
   );
+  
   try {
     EnvConfig.validateApiKeys();
     EnvConfig.printDebugInfo();
-} catch (e) {
+  } catch (e) {
     print('❌ Environment Error: $e');
   }
   runApp(const DiabetesMeApp());
@@ -38,6 +44,9 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
   late AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  
+  // Add a flag to track if we're processing email confirmation
+  bool _isProcessingEmailConfirmation = false;
 
   @override
   void initState() {
@@ -88,23 +97,85 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
     if (uri.scheme == 'com.abhinavsrinivasan.diabetesme' && 
         uri.host == 'login-callback') {
       
+      // Check for authorization code flow (modern Supabase)
+      final code = uri.queryParameters['code'];
+      
+      // Check for legacy token flow
       final accessToken = uri.queryParameters['access_token'];
       final refreshToken = uri.queryParameters['refresh_token'];
       final type = uri.queryParameters['type'];
       
+      print('🔗 Authorization code present: ${code != null}');
       print('🔗 Access token present: ${accessToken != null}');
       print('🔗 Refresh token present: ${refreshToken != null}');
       print('🔗 Type: $type');
       
-      if (type == 'signup' && accessToken != null && refreshToken != null) {
+      if (code != null) {
+        // Handle authorization code flow
+        await _handleAuthorizationCode(uri.toString());
+      } else if (type == 'signup' && accessToken != null && refreshToken != null) {
+        // Handle legacy token flow for signup
         await _handleEmailConfirmation(accessToken, refreshToken);
       } else if (type == 'recovery' && accessToken != null && refreshToken != null) {
+        // Handle legacy token flow for password reset
         await _handlePasswordReset(accessToken, refreshToken);
       }
     }
   }
 
+  Future<void> _handleAuthorizationCode(String url) async {
+    // Set the processing flag to prevent AuthWrapper from interfering
+    setState(() {
+      _isProcessingEmailConfirmation = true;
+    });
+
+    try {
+      print('🔄 Processing authorization code...');
+      
+      // Let Supabase handle the session from URL
+      final response = await Supabase.instance.client.auth.getSessionFromUrl(Uri.parse(url));
+      
+      if (response.session != null) {
+        print('✅ Email confirmed and user logged in via authorization code!');
+        
+        // Wait a moment for the auth state to propagate
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Show confirmation success screen
+        if (mounted && _navigatorKey.currentState != null) {
+          _navigatorKey.currentState!.pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => EmailConfirmationSuccessScreen(
+                onContinue: () {
+                  setState(() {
+                    _isProcessingEmailConfirmation = false;
+                  });
+                  Navigator.of(context).pushReplacementNamed('/home');
+                },
+              ),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        throw Exception('Failed to get session from authorization code');
+      }
+      
+    } catch (e) {
+      print('❌ Error processing authorization code: $e');
+      setState(() {
+        _isProcessingEmailConfirmation = false;
+      });
+      _showErrorDialog('Error confirming email: $e');
+    }
+  }
+
   Future<void> _handleEmailConfirmation(String accessToken, String refreshToken) async {
+    // Set the processing flag to prevent AuthWrapper from interfering
+    setState(() {
+      _isProcessingEmailConfirmation = true;
+    });
+
     try {
       print('🔄 Setting Supabase session for email confirmation...');
       
@@ -113,12 +184,18 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
       if (response.session != null) {
         print('✅ Email confirmed and user logged in!');
         
+        // Wait a moment for the auth state to propagate
+        await Future.delayed(const Duration(milliseconds: 500));
+        
         // Show confirmation success screen
         if (mounted && _navigatorKey.currentState != null) {
           _navigatorKey.currentState!.pushAndRemoveUntil(
             MaterialPageRoute(
               builder: (context) => EmailConfirmationSuccessScreen(
                 onContinue: () {
+                  setState(() {
+                    _isProcessingEmailConfirmation = false;
+                  });
                   Navigator.of(context).pushReplacementNamed('/home');
                 },
               ),
@@ -132,6 +209,9 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
       
     } catch (e) {
       print('❌ Error setting session: $e');
+      setState(() {
+        _isProcessingEmailConfirmation = false;
+      });
       _showErrorDialog('Error confirming email: $e');
     }
   }
@@ -223,7 +303,7 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
       themeMode: ThemeMode.light,
       initialRoute: '/',
       routes: {
-        '/': (context) => const AuthWrapper(),
+        '/': (context) => AuthWrapper(isProcessingEmailConfirmation: _isProcessingEmailConfirmation),
         '/home': (context) => const MainAppScaffold(),
         '/email-verification': (context) => EmailVerificationScreen(email: ''),
         '/grocery': (context) => const GroceryListScreen(),
@@ -308,7 +388,7 @@ class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSucces
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
-          child: SingleChildScrollView( // FIX: Added SingleChildScrollView
+          child: SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 minHeight: MediaQuery.of(context).size.height - 
@@ -323,8 +403,8 @@ class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSucces
                     ScaleTransition(
                       scale: _scaleAnimation,
                       child: Container(
-                        width: 100, // FIX: Reduced size
-                        height: 100, // FIX: Reduced size
+                        width: 100,
+                        height: 100,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
@@ -334,7 +414,7 @@ class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSucces
                               Colors.green.shade600,
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(50), // FIX: Adjusted for new size
+                          borderRadius: BorderRadius.circular(50),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.green.withOpacity(0.3),
@@ -345,38 +425,38 @@ class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSucces
                         ),
                         child: const Icon(
                           Icons.check,
-                          size: 50, // FIX: Reduced size
+                          size: 50,
                           color: Colors.white,
                         ),
                       ),
                     ),
                     
-                    const SizedBox(height: 24), // FIX: Reduced spacing
+                    const SizedBox(height: 24),
                     
                     // Success Title
                     const Text(
                       'Email Confirmed!',
                       style: TextStyle(
-                        fontSize: 24, // FIX: Reduced font size
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
                     ),
                     
-                    const SizedBox(height: 12), // FIX: Reduced spacing
+                    const SizedBox(height: 12),
                     
                     // Success Message
                     Text(
                       'Welcome to Diabetes&Me! Your account has been successfully verified.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14, // FIX: Reduced font size
+                        fontSize: 14,
                         color: Colors.grey[600],
                         height: 1.5,
                       ),
                     ),
                     
-                    const SizedBox(height: 32), // FIX: Reduced spacing
+                    const SizedBox(height: 32),
                     
                     // Progress Indicator
                     Column(
@@ -386,23 +466,23 @@ class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSucces
                           backgroundColor: Colors.grey[200],
                           valueColor: AlwaysStoppedAnimation(Colors.green.shade600),
                         ),
-                        const SizedBox(height: 12), // FIX: Reduced spacing
+                        const SizedBox(height: 12),
                         Text(
                           'Taking you to your dashboard...',
                           style: TextStyle(
-                            fontSize: 12, // FIX: Reduced font size
+                            fontSize: 12,
                             color: Colors.grey[600],
                           ),
                         ),
                       ],
                     ),
                     
-                    const SizedBox(height: 32), // FIX: Reduced spacing
+                    const SizedBox(height: 32),
                     
                     // Continue Button
                     SizedBox(
                       width: double.infinity,
-                      height: 48, // FIX: Reduced height
+                      height: 48,
                       child: ElevatedButton(
                         onPressed: widget.onContinue,
                         style: ElevatedButton.styleFrom(
@@ -416,7 +496,7 @@ class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSucces
                         child: const Text(
                           'Continue to App',
                           style: TextStyle(
-                            fontSize: 14, // FIX: Reduced font size
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -433,11 +513,30 @@ class _EmailConfirmationSuccessScreenState extends State<EmailConfirmationSucces
   }
 }
 
+// FIXED: Updated AuthWrapper to handle email confirmation processing
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
+  final bool isProcessingEmailConfirmation;
+  
+  const AuthWrapper({super.key, this.isProcessingEmailConfirmation = false});
 
   @override
   Widget build(BuildContext context) {
+    // If we're processing email confirmation, show loading
+    if (isProcessingEmailConfirmation) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Processing email confirmation...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {

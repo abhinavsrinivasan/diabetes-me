@@ -94,12 +94,17 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
       final profile = await AuthService().getProfile();
       if (profile != null) {
         setState(() {
+          // Extract first name from full name
           String fullName = profile['name'] ?? 'User';
           userName = fullName.split(' ').first;
         });
       }
     } catch (e) {
       debugPrint('Error fetching user profile: $e');
+      // Set a default name if profile fetch fails
+      setState(() {
+        userName = 'User';
+      });
     }
   }
 
