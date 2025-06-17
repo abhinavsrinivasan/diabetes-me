@@ -49,6 +49,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     _fadeController.forward();
     _slideController.forward();
+    
+    // Load remembered credentials
+    _loadRememberedCredentials();
   }
 
   @override
@@ -60,6 +63,18 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _nameController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    final rememberedEmail = await _authService.getRememberedEmail();
+    final hasRememberMe = await _authService.hasRememberMe();
+    
+    if (rememberedEmail != null) {
+      setState(() {
+        _emailController.text = rememberedEmail;
+        _rememberMe = hasRememberMe;
+      });
+    }
   }
 
   void _submit() async {
@@ -81,57 +96,59 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     setState(() => _loading = true);
 
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    final name = _nameController.text.trim();
-
     if (_isLogin) {
-      final result = await _authService.login(email, password);
+      // LOGIN
+      final result = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
       setState(() => _loading = false);
-
       if (result.isSuccess) {
-        Navigator.pushReplacementNamed(context, '/home');
-      } else if (result.needsEmailConfirmation) {
-        _navigateToEmailVerification(result.email!);
+        // Success: AuthWrapper will handle navigation
+      } else if (result.needsEmailConfirmation && result.email != null) {
+        // Always route to email verification if needed
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(email: result.email!),
+          ),
+        );
       } else {
         _showErrorSnackBar(result.errorMessage ?? "Login failed. Please try again.");
       }
     } else {
-      // Validate signup fields
-      if (name.isEmpty) {
+      // SIGNUP
+      if (_nameController.text.trim().isEmpty) {
         setState(() => _loading = false);
         _showErrorSnackBar("Please enter your name");
         return;
       }
-
-      final result = await _authService.signup(email, password, name: name);
+      final result = await _authService.signup(
+        _emailController.text.trim(),
+        _passwordController.text,
+        name: _nameController.text.trim(),
+      );
       setState(() => _loading = false);
-
       if (result.isSuccess) {
-        // Auto-login was successful (email confirmation disabled)
         _showSuccessSnackBar("Account created successfully!");
-        Navigator.pushReplacementNamed(context, '/home');
-      } else if (result.needsEmailConfirmation) {
-        // Email confirmation required
-        _navigateToEmailVerification(result.email!);
+      } else if (result.needsEmailConfirmation && result.email != null) {
+        // Always route to email verification if needed
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(email: result.email!),
+          ),
+        );
       } else {
         _showErrorSnackBar(result.errorMessage ?? "This email is already registered or an error occurred.");
       }
     }
   }
 
-  void _navigateToEmailVerification(String email) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EmailVerificationScreen(email: email),
-      ),
-    );
-  }
-
   bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
+  return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+}
+
 
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -215,26 +232,25 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       opacity: _fadeAnimation,
                       child: Container(
                         width: double.infinity,
-                        color: Colors.transparent, // Transparent background
+                        color: Colors.transparent,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const SizedBox(height: 40), // Move logo down
-                            // Your Official Logo - just the logo, no white circle
+                            const SizedBox(height: 40),
+                            // Your Official Logo
                             ClipRRect(
                               borderRadius: BorderRadius.circular(90),
                               child: Image.asset(
-                                'assets/appicon.png', // This should point to your uploaded logo
+                                'assets/appicon.png',
                                 width: 180,
                                 height: 180,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
-                                  // Fallback to a styled container if logo not found
                                   return Container(
                                     width: 180,
                                     height: 180,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF4A90E2), // Blue background like your logo
+                                      color: const Color(0xFF4A90E2),
                                       borderRadius: BorderRadius.circular(90),
                                     ),
                                     child: const Icon(
@@ -246,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 },
                               ),
                             ),
-                            const SizedBox(height: 6), // Reduced from 12 to 6
+                            const SizedBox(height: 6),
                             
                             // App Name
                             const Text(
@@ -387,22 +403,44 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             if (_isLogin) ...[
                               Row(
                                 children: [
-                                  Checkbox(
-                                    value: _rememberMe,
-                                    onChanged: (value) => setState(() => _rememberMe = value ?? false),
-                                    activeColor: const Color(0xFFFF6B35),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                  Transform.scale(
+                                    scale: 0.9,
+                                    child: Checkbox(
+                                      value: _rememberMe,
+                                      onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                                      activeColor: const Color(0xFFFF6B35),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    ),
                                   ),
                                   Text(
                                     'Remember me',
                                     style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                  ),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const ForgotPasswordScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(
+                                      'Forgot Password?',
+                                      style: TextStyle(
+                                        color: const Color(0xFFFF6B35),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 8),
                             ],
 
-                              const SizedBox(height: 16), // Reduced spacing before button
+                            const SizedBox(height: 16),
 
                             // Submit Button
                             Container(
@@ -436,30 +474,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                       ),
                               ),
                             ),
-
-                            if (_isLogin) ...[
-                              const SizedBox(height: 16),
-                              Center(
-                                child: TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const ForgotPasswordScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: Text(
-                                    'Forgot Password?',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
                           ]
                         ),
                       ),
@@ -474,3 +488,4 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 }
+

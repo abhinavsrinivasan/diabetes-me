@@ -52,7 +52,7 @@ class AuthService {
   }
 
   // Sign in with email and password - Checks email confirmation
-  Future<AuthResult> login(String email, String password) async {
+  Future<AuthResult> login(String email, String password, {bool rememberMe = false}) async {
     try {
       final response = await _supabase.auth.signInWithPassword(
         email: email,
@@ -68,8 +68,18 @@ class AuthService {
         // Create profile if it doesn't exist (for users who confirmed email outside app)
         await _ensureUserProfileExists(response.user!, email);
         
-        // Store session token
+        // Store session token and remember me preference
         await _storage.write(key: 'supabase_session', value: response.session!.accessToken);
+        
+        // Handle Remember Me functionality
+        if (rememberMe) {
+          await _storage.write(key: 'remember_email', value: email);
+          await _storage.write(key: 'remember_me', value: 'true');
+        } else {
+          await _storage.delete(key: 'remember_email');
+          await _storage.delete(key: 'remember_me');
+        }
+        
         return AuthResult.success();
       }
       return AuthResult.error('Invalid email or password');
@@ -82,6 +92,21 @@ class AuthService {
       }
       return AuthResult.error('Login failed: ${e.toString()}');
     }
+  }
+
+  // Get remembered email for auto-fill
+  Future<String?> getRememberedEmail() async {
+    final rememberMe = await _storage.read(key: 'remember_me');
+    if (rememberMe == 'true') {
+      return await _storage.read(key: 'remember_email');
+    }
+    return null;
+  }
+
+  // Check if user has remember me enabled
+  Future<bool> hasRememberMe() async {
+    final rememberMe = await _storage.read(key: 'remember_me');
+    return rememberMe == 'true';
   }
 
   // Ensure user profile exists (helper method)
@@ -118,16 +143,44 @@ class AuthService {
     }
   }
 
-  // Send password reset email with proper redirect
+  // FIXED: Send password reset email with proper redirect
   Future<bool> sendPasswordResetEmail(String email) async {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email,
-        redirectTo: 'com.abhinavsrinivasan.diabetesme://login-callback',
+        redirectTo: 'com.abhinavsrinivasan.diabetesme://password-reset',
       );
       return true;
     } catch (e) {
       print('Password reset error: $e');
+      return false;
+    }
+  }
+
+  // NEW: Check if current session is a password reset session
+  bool isPasswordResetSession() {
+    final session = _supabase.auth.currentSession;
+    if (session == null) return false;
+    
+    // Check if this is a recovery session (password reset)
+    // Supabase sets specific metadata for recovery sessions
+    return session.user?.aud == 'authenticated' && 
+           session.user?.recoverySentAt != null;
+  }
+
+  // NEW: Update password during password reset flow
+  Future<bool> updatePasswordFromReset(String newPassword) async {
+    try {
+      if (!isPasswordResetSession()) {
+        throw Exception('Not in password reset session');
+      }
+      
+      await _supabase.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+      return true;
+    } catch (e) {
+      print('Update password error: $e');
       return false;
     }
   }
@@ -147,7 +200,7 @@ class AuthService {
     }
   }
 
-  // Update password
+  // Update password (general method)
   Future<bool> updatePassword(String newPassword) async {
     try {
       await _supabase.auth.updateUser(
@@ -333,6 +386,15 @@ class AuthService {
   Future<void> logout() async {
     await _supabase.auth.signOut();
     await _storage.delete(key: 'supabase_session');
+    // Keep remember me data unless user explicitly logs out
+  }
+
+  // Clear all stored data (for complete logout)
+  Future<void> logoutAndClearAll() async {
+    await _supabase.auth.signOut();
+    await _storage.delete(key: 'supabase_session');
+    await _storage.delete(key: 'remember_email');
+    await _storage.delete(key: 'remember_me');
   }
 
   // Get stored token (for compatibility)
@@ -359,12 +421,14 @@ class AuthService {
 class AuthResult {
   final bool isSuccess;
   final bool needsEmailConfirmation;
+  final bool needsPasswordReset;
   final String? email;
   final String? errorMessage;
 
   AuthResult._({
     required this.isSuccess,
     required this.needsEmailConfirmation,
+    required this.needsPasswordReset,
     this.email,
     this.errorMessage,
   });
@@ -373,6 +437,7 @@ class AuthResult {
     return AuthResult._(
       isSuccess: true,
       needsEmailConfirmation: false,
+      needsPasswordReset: false,
     );
   }
 
@@ -380,6 +445,16 @@ class AuthResult {
     return AuthResult._(
       isSuccess: false,
       needsEmailConfirmation: true,
+      needsPasswordReset: false,
+      email: email,
+    );
+  }
+
+  factory AuthResult.passwordResetRequired(String email) {
+    return AuthResult._(
+      isSuccess: false,
+      needsEmailConfirmation: false,
+      needsPasswordReset: true,
       email: email,
     );
   }
@@ -388,6 +463,7 @@ class AuthResult {
     return AuthResult._(
       isSuccess: false,
       needsEmailConfirmation: false,
+      needsPasswordReset: false,
       errorMessage: message,
     );
   }

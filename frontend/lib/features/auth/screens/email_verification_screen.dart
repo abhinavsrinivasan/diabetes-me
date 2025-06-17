@@ -19,7 +19,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   bool _isResending = false;
   bool _canResend = true;
   int _resendCooldown = 0;
-  
+  bool _checking = false;
+  String? _error;
   late AnimationController _pulseController;
   late AnimationController _slideController;
   late Animation<double> _pulseAnimation;
@@ -62,73 +63,42 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     _listenForEmailConfirmation();
   }
 
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _slideController.dispose();
-    super.dispose();
-  }
-
   void _listenForEmailConfirmation() {
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
       final user = data.session?.user;
       if (user != null && user.emailConfirmedAt != null) {
         // Email confirmed! Navigate to home
         if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/home');
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
         }
       }
     });
   }
 
-  Future<void> _resendEmail() async {
-    if (!_canResend || _isResending) return;
-    
-    setState(() {
-      _isResending = true;
-    });
-
+  Future<void> _checkStatus() async {
+    setState(() { _checking = true; _error = null; });
     try {
-      final success = await AuthService().resendEmailConfirmation(widget.email);
-      
-      if (success) {
-        _showSuccessSnackBar('Verification email sent! Check your inbox.');
-        _startResendCooldown();
+      final user = Supabase.instance.client.auth.currentUser;
+      await Supabase.instance.client.auth.refreshSession();
+      if (user != null && user.emailConfirmedAt != null) {
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+        }
       } else {
-        _showErrorSnackBar('Failed to send email. Please try again.');
+        setState(() { _error = 'Email not yet confirmed. Please check your inbox.'; });
       }
     } catch (e) {
-      _showErrorSnackBar('An error occurred. Please try again.');
+      setState(() { _error = 'Error checking status: $e'; });
     } finally {
-      setState(() {
-        _isResending = false;
-      });
+      setState(() { _checking = false; });
     }
   }
 
-  void _startResendCooldown() {
-    setState(() {
-      _canResend = false;
-      _resendCooldown = 60;
-    });
-    
-    // Countdown timer
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted) {
-        setState(() {
-          _resendCooldown--;
-        });
-        return _resendCooldown > 0;
-      }
-      return false;
-    }).then((_) {
-      if (mounted) {
-        setState(() {
-          _canResend = true;
-        });
-      }
-    });
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _slideController.dispose();
+    super.dispose();
   }
 
   void _goToLogin() {
@@ -160,338 +130,65 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: SingleChildScrollView( // FIX: Wrap everything in SingleChildScrollView
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height - 
-                           MediaQuery.of(context).padding.top - 48, // Account for padding
+      appBar: AppBar(
+        title: const Text('Verify Your Email'),
+        automaticallyImplyLeading: false,
+      ),
+      body: FadeTransition(
+        opacity: _slideAnimation,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.email_outlined, size: 64, color: Colors.deepPurple),
+              const SizedBox(height: 24),
+              Text(
+                'A verification link has been sent to:',
+                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                textAlign: TextAlign.center,
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, // FIX: Changed from center
-                children: [
-                  // Header section
-                  Column( // FIX: Wrap header content in Column
-                    children: [
-                      const SizedBox(height: 40),
-                      
-                      // Header illustration
-                      AnimatedBuilder(
-                        animation: _pulseAnimation,
-                        builder: (context, child) {
-                          return Transform.scale(
-                            scale: _pulseAnimation.value,
-                            child: Container(
-                              width: 100, // FIX: Reduced size
-                              height: 100, // FIX: Reduced size
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    const Color(0xFFFF6B35),
-                                    const Color(0xFFFF8A5C),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(50), // FIX: Adjusted for new size
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFF6B35).withOpacity(0.3),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.mail_outline,
-                                size: 50, // FIX: Reduced size
-                                color: Colors.white,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24), // FIX: Reduced spacing
-                      const Text(
-                        'Check Your Email',
-                        style: TextStyle(
-                          fontSize: 24, // FIX: Reduced font size
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 12), // FIX: Reduced spacing
-                      Text(
-                        'We\'ve sent a verification link to:',
-                        style: TextStyle(
-                          fontSize: 14, // FIX: Reduced font size
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FA),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFFF6B35).withOpacity(0.2),
-                          ),
-                        ),
-                        child: Text(
-                          widget.email,
-                          style: const TextStyle(
-                            fontSize: 14, // FIX: Reduced font size
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFFF6B35),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  // Middle section with instructions
-                  Column( // FIX: Wrap instructions in Column
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16), // FIX: Reduced padding
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.blue[200]!,
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: Colors.blue[700],
-                                  size: 20, // FIX: Reduced icon size
-                                ),
-                                const SizedBox(width: 8), // FIX: Reduced spacing
-                                const Text(
-                                  'Next Steps',
-                                  style: TextStyle(
-                                    fontSize: 16, // FIX: Reduced font size
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12), // FIX: Reduced spacing
-                            _buildInstructionStep(
-                              '1.',
-                              'Check your email app (including spam folder)',
-                              Icons.email_outlined,
-                            ),
-                            const SizedBox(height: 8), // FIX: Reduced spacing
-                            _buildInstructionStep(
-                              '2.',
-                              'Look for an email from Diabetes&Me',
-                              Icons.search_outlined,
-                            ),
-                            const SizedBox(height: 8), // FIX: Reduced spacing
-                            _buildInstructionStep(
-                              '3.',
-                              'Tap the "Confirm Email" button in the email',
-                              Icons.link_outlined,
-                            ),
-                            const SizedBox(height: 8), // FIX: Reduced spacing
-                            _buildInstructionStep(
-                              '4.',
-                              'You\'ll be signed in automatically!',
-                              Icons.login_outlined,
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16), // FIX: Reduced spacing
-                      
-                      // Status message
-                      Container(
-                        padding: const EdgeInsets.all(12), // FIX: Reduced padding
-                        decoration: BoxDecoration(
-                          color: Colors.green[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.green[200]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.autorenew, color: Colors.green[600], size: 18), // FIX: Reduced size
-                            const SizedBox(width: 8), // FIX: Reduced spacing
-                            Expanded(
-                              child: Text(
-                                'Waiting for email confirmation...',
-                                style: TextStyle(
-                                  fontSize: 12, // FIX: Reduced font size
-                                  color: Colors.green[800],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 12), // FIX: Reduced spacing
-                      
-                      // Didn't receive email section
-                      Text(
-                        'Didn\'t receive the email?',
-                        style: TextStyle(
-                          fontSize: 14, // FIX: Reduced font size
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8), // FIX: Reduced spacing
-                      Text(
-                        'Check your spam folder or try resending',
-                        style: TextStyle(
-                          fontSize: 12, // FIX: Reduced font size
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                  
-                  // Bottom action buttons
-                  Column(
-                    children: [
-                      // Resend button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48, // FIX: Reduced height
-                        child: OutlinedButton.icon(
-                          onPressed: _canResend && !_isResending ? _resendEmail : null,
-                          icon: _isResending
-                              ? const SizedBox(
-                                  width: 16, // FIX: Reduced size
-                                  height: 16, // FIX: Reduced size
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFFFF6B35),
-                                    ),
-                                  ),
-                                )
-                              : const Icon(Icons.refresh),
-                          label: Text(
-                            _isResending
-                                ? 'Sending...'
-                                : _canResend
-                                    ? 'Resend Email'
-                                    : 'Resend in ${_resendCooldown}s',
-                            style: const TextStyle(
-                              fontSize: 14, // FIX: Reduced font size
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFFF6B35),
-                            side: const BorderSide(
-                              color: Color(0xFFFF6B35),
-                              width: 2,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 12), // FIX: Reduced spacing
-                      
-                      // Back to login button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48, // FIX: Reduced height
-                        child: ElevatedButton.icon(
-                          onPressed: _goToLogin,
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text(
-                            'Back to Sign In',
-                            style: TextStyle(
-                              fontSize: 14, // FIX: Reduced font size
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF6B35),
-                            foregroundColor: Colors.white,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Text(
+                widget.email,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
-            ),
+              const SizedBox(height: 24),
+              Text(
+                'Please check your inbox and click the link to verify your email.\n',
+                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+              ],
+              const SizedBox(height: 32),
+              if (_checking)
+                const CircularProgressIndicator()
+              else
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('I have verified my email'),
+                  onPressed: _checkStatus,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                },
+                child: const Text('Back to Login'),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildInstructionStep(String number, String text, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          width: 20, // FIX: Reduced size
-          height: 20, // FIX: Reduced size
-          decoration: BoxDecoration(
-            color: Colors.blue[700],
-            borderRadius: BorderRadius.circular(10), // FIX: Adjusted for new size
-          ),
-          child: Center(
-            child: Text(
-              number,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10, // FIX: Reduced font size
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8), // FIX: Reduced spacing
-        Icon(
-          icon,
-          color: Colors.blue[700],
-          size: 16, // FIX: Reduced size
-        ),
-        const SizedBox(width: 6), // FIX: Reduced spacing
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 12, // FIX: Reduced font size
-              color: Colors.grey[700],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
