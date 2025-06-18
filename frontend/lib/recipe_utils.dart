@@ -190,10 +190,10 @@ class RecipeUtils {
       
       final response = await _supabase
           .from('user_favorite_recipes')
-          .select('id', const FetchOptions(count: CountOption.exact))
+          .select('id')
           .eq('user_id', userId);
       
-      return response.count ?? 0;
+      return response.length;
     } catch (e) {
       debugPrint('❌ Error getting favorites count: $e');
       return 0;

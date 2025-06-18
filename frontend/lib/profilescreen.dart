@@ -16,6 +16,7 @@ import 'features/recipes/models/recipe.dart';
 import 'recipedetail.dart';
 import 'recipe_utils.dart';
 import 'blood_sugar_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -86,6 +87,58 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   }
 
   // Add these methods to your ProfileScreen class (_ProfileScreenState)
+
+Widget _buildProfileImage() {
+  if (imageUrl!.startsWith('http')) {
+    // It's a network URL (Supabase storage)
+    return Image.network(
+      imageUrl!,
+      fit: BoxFit.cover,
+      width: 100,
+      height: 100,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('Error loading profile image: $error');
+        return const Icon(
+          Icons.person,
+          size: 50,
+          color: Colors.white,
+        );
+      },
+    );
+  } else if (imageUrl!.startsWith('/')) {
+    // It's a local file path
+    return Image.file(
+      File(imageUrl!),
+      fit: BoxFit.cover,
+      width: 100,
+      height: 100,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('Error loading local image: $error');
+        return const Icon(
+          Icons.person,
+          size: 50,
+          color: Colors.white,
+        );
+      },
+    );
+  } else {
+    // Fallback for any other format
+    return const Icon(
+      Icons.person,
+      size: 50,
+      color: Colors.white,
+    );
+  }
+}
 
 Future<void> loadProfilePicture() async {
   try {
@@ -158,7 +211,7 @@ Future<void> pickAndUploadImage() async {
         .uploadBinary(
           fileName,
           imageBytes,
-          fileOptions: const FileOptions(
+          fileOptions: FileOptions(
             cacheControl: '3600',
             upsert: true, // Overwrite if exists
           ),
@@ -207,12 +260,6 @@ Future<void> pickAndUploadImage() async {
     });
   }
 }
-
-// Update your existing pickImage method to call the new one
-Future<void> pickImage() async {
-  await pickAndUploadImage();
-}
-
 // Add this method to delete profile picture
 Future<void> deleteProfilePicture() async {
   try {
@@ -314,68 +361,33 @@ Widget buildProfilePictureSection() {
       );
     },
     child: Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade600],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.deepPurple.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          ClipOval(
-            child: imageUrl != null && imageUrl!.isNotEmpty
-                ? Image.network(
-                    imageUrl!,
-                    fit: BoxFit.cover,
-                    width: 100,
-                    height: 100,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      debugPrint('Error loading profile image: $error');
-                      return const Icon(
-                        Icons.person,
-                        size: 50,
-                        color: Colors.white,
-                      );
-                    },
-                  )
-                : const Icon(Icons.person, size: 50, color: Colors.white),
-          ),
-          if (isLoadingImage)
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black.withOpacity(0.5),
-              ),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              ),
-            ),
-        ],
-      ),
+  width: 100,
+  height: 100,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    gradient: LinearGradient(
+      colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade600],
     ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.deepPurple.withOpacity(0.3),
+        blurRadius: 20,
+        offset: const Offset(0, 10),
+      ),
+    ],
+  ),
+  child: Center( // Add this Center widget
+    child: ClipOval(
+      child: imageUrl != null && imageUrl!.isNotEmpty
+          ? _buildProfileImage()
+          : const Icon(
+              Icons.person,
+              size: 50,
+              color: Colors.white,
+            ),
+    ),
+  ),
+),
   );
 }
 
