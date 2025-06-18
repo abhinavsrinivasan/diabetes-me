@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _isLogin = true;
   bool _loading = false;
   bool _obscurePassword = true;
-  bool _rememberMe = false;
+  String? _lastUsedEmail; // Store the last used email
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -67,12 +67,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   Future<void> _loadRememberedCredentials() async {
     final rememberedEmail = await _authService.getRememberedEmail();
-    final hasRememberMe = await _authService.hasRememberMe();
     
     if (rememberedEmail != null) {
       setState(() {
         _emailController.text = rememberedEmail;
-        _rememberMe = hasRememberMe;
+        _lastUsedEmail = rememberedEmail;
       });
     }
   }
@@ -101,9 +100,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       final result = await _authService.login(
         _emailController.text.trim(),
         _passwordController.text,
+        rememberMe: true, // Always remember the email for convenience
       );
       setState(() => _loading = false);
       if (result.isSuccess) {
+        // Store the email for future use
+        setState(() {
+          _lastUsedEmail = _emailController.text.trim();
+        });
         // Success: AuthWrapper will handle navigation
       } else if (result.needsEmailConfirmation && result.email != null) {
         // Always route to email verification if needed
@@ -131,8 +135,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       setState(() => _loading = false);
       if (result.isSuccess) {
         _showSuccessSnackBar("Account created successfully!");
+        // Store the email for future use
+        setState(() {
+          _lastUsedEmail = _emailController.text.trim();
+        });
       } else if (result.needsEmailConfirmation && result.email != null) {
-        // Always route to email verification if needed
+        // Store the email and route to email verification
+        setState(() {
+          _lastUsedEmail = result.email;
+        });
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -146,9 +157,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   bool _isValidEmail(String email) {
-  return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-}
-
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
 
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -399,43 +409,30 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               ),
                             ),
 
-                            // Remember Me Checkbox (only for login)
+                            // Forgot Password (only for login)
                             if (_isLogin) ...[
-                              Row(
-                                children: [
-                                  Transform.scale(
-                                    scale: 0.9,
-                                    child: Checkbox(
-                                      value: _rememberMe,
-                                      onChanged: (value) => setState(() => _rememberMe = value ?? false),
-                                      activeColor: const Color(0xFFFF6B35),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                    ),
-                                  ),
-                                  Text(
-                                    'Remember me',
-                                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                                  ),
-                                  const Spacer(),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => const ForgotPasswordScreen(),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ForgotPasswordScreen(
+                                          prefilledEmail: _lastUsedEmail ?? _emailController.text.trim(),
                                         ),
-                                      );
-                                    },
-                                    child: Text(
-                                      'Forgot Password?',
-                                      style: TextStyle(
-                                        color: const Color(0xFFFF6B35),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
                                       ),
+                                    );
+                                  },
+                                  child: Text(
+                                    'Forgot Password?',
+                                    style: TextStyle(
+                                      color: const Color(0xFFFF6B35),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                ],
+                                ),
                               ),
                               const SizedBox(height: 8),
                             ],
@@ -488,4 +485,3 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 }
-

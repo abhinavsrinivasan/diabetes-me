@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+  final String? prefilledEmail;
+  
+  const ForgotPasswordScreen({super.key, this.prefilledEmail});
 
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
@@ -12,9 +14,6 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> 
     with TickerProviderStateMixin {
   final _emailController = TextEditingController();
-  final _codeController = TextEditingController();
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   
   bool _isLoading = false;
   bool _emailSent = false;
@@ -34,15 +33,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
     );
     _fadeController.forward();
+    
+    // Pre-fill email if provided and disable editing
+    if (widget.prefilledEmail != null && widget.prefilledEmail!.isNotEmpty) {
+      _emailController.text = widget.prefilledEmail!;
+      _userEmail = widget.prefilledEmail!;
+    }
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
     _emailController.dispose();
-    _codeController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -106,25 +108,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    int? maxLength,
+    bool readOnly = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
-        obscureText: obscureText,
-        maxLength: maxLength,
-        style: const TextStyle(fontSize: 16, color: Colors.black87),
+        readOnly: readOnly,
+        style: TextStyle(
+          fontSize: 16, 
+          color: readOnly ? Colors.grey[600] : Colors.black87,
+        ),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
           prefixIcon: Icon(icon, color: Colors.grey[600], size: 20),
-          suffixIcon: suffixIcon,
           filled: true,
-          fillColor: Colors.grey[50],
+          fillColor: readOnly ? Colors.grey[100] : Colors.grey[50],
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -138,7 +139,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFFF6B35), width: 2),
           ),
-          counterText: '',
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
         ),
       ),
     );
@@ -146,6 +150,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bool hasPrefilledEmail = widget.prefilledEmail != null && widget.prefilledEmail!.isNotEmpty;
+    
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -182,7 +188,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'We\'ll send you instructions to reset your password.',
+                  hasPrefilledEmail 
+                    ? 'We\'ll send password reset instructions to this email address.'
+                    : 'We\'ll send you instructions to reset your password.',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[600],
@@ -195,7 +203,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                   label: 'Email Address',
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
+                  readOnly: hasPrefilledEmail, // Make read-only if pre-filled
                 ),
+                
+                if (hasPrefilledEmail) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: Colors.blue[600]),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'This is the email address associated with your account.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 
                 const SizedBox(height: 24),
                 
@@ -346,7 +374,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Due to current app limitations, you\'ll need to check your email and follow the reset link there. The link will guide you through the password reset process.',
+                              'Check your email and follow the reset link. The link will guide you through the password reset process.',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.blue[800],
@@ -358,33 +386,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                       ),
                       
                       const SizedBox(height: 32),
-                      
-                      // Resend button
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _emailSent = false;
-                          });
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Send to Different Email'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFFF6B35),
-                          side: const BorderSide(
-                            color: Color(0xFFFF6B35),
-                            width: 2,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16),
                       
                       // Back to login button
                       SizedBox(
