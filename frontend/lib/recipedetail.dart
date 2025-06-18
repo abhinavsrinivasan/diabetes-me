@@ -24,26 +24,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     modifiedIngredients = List.from(widget.recipe.ingredients);
   }
 
-  // Mock ingredient data with icons and amounts
+  // Mock ingredient data with amounts (NO EMOJIS)
   List<Map<String, dynamic>> get ingredientsList {
     final baseIngredients = [
       {
-        'icon': '🥖',
         'name': modifiedIngredients.isNotEmpty ? modifiedIngredients[0] : 'Bread',
         'amount': '2 slices'
       },
       {
-        'icon': '🫒',
         'name': modifiedIngredients.length > 1 ? modifiedIngredients[1] : 'Olive oil',
         'amount': '1 tbsp'
       },
       {
-        'icon': '🧄',
         'name': modifiedIngredients.length > 2 ? modifiedIngredients[2] : 'Garlic',
         'amount': '1 clove'
       },
       {
-        'icon': '🧂',
         'name': 'Salt and pepper',
         'amount': 'To taste'
       },
@@ -52,35 +48,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     // Add remaining ingredients
     for (int i = 3; i < modifiedIngredients.length; i++) {
       baseIngredients.add({
-        'icon': _getIngredientIcon(modifiedIngredients[i]),
         'name': modifiedIngredients[i],
         'amount': _getIngredientAmount(modifiedIngredients[i])
       });
     }
     
     return baseIngredients;
-  }
-
-  String _getIngredientIcon(String ingredient) {
-    final lower = ingredient.toLowerCase();
-    if (lower.contains('tomato')) return '🍅';
-    if (lower.contains('cheese')) return '🧀';
-    if (lower.contains('chicken')) return '🍗';
-    if (lower.contains('egg')) return '🥚';
-    if (lower.contains('avocado')) return '🥑';
-    if (lower.contains('lettuce') || lower.contains('salad')) return '🥬';
-    if (lower.contains('yogurt')) return '🥛';
-    if (lower.contains('berry') || lower.contains('strawberry')) return '🍓';
-    if (lower.contains('blueberry')) return '🫐';
-    if (lower.contains('nuts') || lower.contains('almond')) return '🥜';
-    if (lower.contains('honey')) return '🍯';
-    if (lower.contains('bell pepper')) return '🫑';
-    if (lower.contains('broccoli')) return '🥦';
-    if (lower.contains('zucchini')) return '🥒';
-    if (lower.contains('mushroom')) return '🍄';
-    if (lower.contains('carrot')) return '🥕';
-    if (lower.contains('onion')) return '🧅';
-    return '🥄'; // Default icon
   }
 
   String _getIngredientAmount(String ingredient) {
@@ -310,34 +283,34 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
                     // Diabetes Info
                     Container(
-  padding: const EdgeInsets.all(20),
-  decoration: BoxDecoration(
-    color: const Color(0xFFE8F5E8),
-    borderRadius: BorderRadius.circular(16),
-  ),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        'Diabetes-Friendly Info',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF2E7D32),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNutritionInfo('Carbs', '${widget.recipe.carbs}g', const Color(0xFFFF6B35)),
-          _buildNutritionInfo('Sugar', '${widget.recipe.sugar}g', const Color(0xFF9C27B0)),
-          _buildNutritionInfo('Calories', '${widget.recipe.calories}', const Color(0xFF2196F3)),
-        ],
-      ),
-    ],
-  ),
-),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E8),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Diabetes-Friendly Info',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2E7D32),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildNutritionInfo('Carbs', '${widget.recipe.carbs}g', const Color(0xFFFF6B35)),
+                              _buildNutritionInfo('Sugar', '${widget.recipe.sugar}g', const Color(0xFF9C27B0)),
+                              _buildNutritionInfo('Calories', '${widget.recipe.calories}', const Color(0xFF2196F3)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
 
                     const SizedBox(height: 32),
 
@@ -500,7 +473,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
             child: Row(
               children: [
-                // Icon container with subtle animation hint
+                // Icon container with cooking icon (NO DYNAMIC EMOJIS)
                 Container(
                   width: 50,
                   height: 50,
@@ -512,10 +485,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       width: 1,
                     ),
                   ),
-                  child: Center(
-                    child: Text(
-                      ingredient['icon'],
-                      style: const TextStyle(fontSize: 24),
+                  child: const Center(
+                    child: Icon(
+                      Icons.restaurant_menu,
+                      color: Colors.grey,
+                      size: 24,
                     ),
                   ),
                 ),

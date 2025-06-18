@@ -83,14 +83,28 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       return;
     }
 
+    // Enhanced email validation for proper format
     if (!_isValidEmail(_emailController.text.trim())) {
-      _showErrorSnackBar("Please enter a valid email address");
+      _showErrorSnackBar("Please enter a valid email address (e.g., user@gmail.com)");
       return;
     }
 
     if (_passwordController.text.length < 6) {
       _showErrorSnackBar("Password must be at least 6 characters");
       return;
+    }
+
+    // Additional validation for signup
+    if (!_isLogin) {
+      if (_nameController.text.trim().isEmpty) {
+        _showErrorSnackBar("Please enter your name");
+        return;
+      }
+      
+      if (_nameController.text.trim().length < 2) {
+        _showErrorSnackBar("Name must be at least 2 characters");
+        return;
+      }
     }
 
     setState(() => _loading = true);
@@ -122,11 +136,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       }
     } else {
       // SIGNUP
-      if (_nameController.text.trim().isEmpty) {
-        setState(() => _loading = false);
-        _showErrorSnackBar("Please enter your name");
-        return;
-      }
       final result = await _authService.signup(
         _emailController.text.trim(),
         _passwordController.text,
@@ -157,7 +166,35 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+    // Enhanced email validation with proper formatting requirements
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    );
+    
+    if (!emailRegex.hasMatch(email)) {
+      return false;
+    }
+    
+    // Additional checks for common email format issues
+    if (email.contains('..')) return false; // No consecutive dots
+    if (email.startsWith('.') || email.endsWith('.')) return false; // No dots at start/end
+    if (email.contains('@.') || email.contains('.@')) return false; // No dots adjacent to @
+    if (email.split('@').length != 2) return false; // Exactly one @ symbol
+    
+    final parts = email.split('@');
+    final localPart = parts[0];
+    final domainPart = parts[1];
+    
+    // Local part validations
+    if (localPart.isEmpty || localPart.length > 64) return false;
+    if (localPart.startsWith('.') || localPart.endsWith('.')) return false;
+    
+    // Domain part validations
+    if (domainPart.isEmpty || domainPart.length > 255) return false;
+    if (domainPart.startsWith('-') || domainPart.endsWith('-')) return false;
+    if (!domainPart.contains('.')) return false; // Must have at least one dot
+    
+    return true;
   }
 
   void _showSuccessSnackBar(String message) {

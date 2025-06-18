@@ -185,229 +185,237 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
       body: SafeArea(
         child: SlideTransition(
           position: _slideAnimation,
-          child: Padding(
+          child: SingleChildScrollView( // FIXED: Added SingleChildScrollView
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                const SizedBox(height: 60),
-                
-                // Blue circular email icon
-                ScaleTransition(
-                  scale: _pulseAnimation,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4285F4), // Google blue
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.email_outlined,
-                      size: 60,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 40),
-                
-                // Check Your Email title
-                const Text(
-                  'Check Your Email',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Subtitle message
-                const Text(
-                  'We\'ve sent a verification link to',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF666666),
-                    fontWeight: FontWeight.w400,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                
-                const SizedBox(height: 8),
-                
-                // Email address
-                Text(
-                  widget.email,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF4285F4),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                
-                const SizedBox(height: 40),
-                
-                // Numbered instructions
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      _buildInstructionStep(
-                        '1',
-                        'Check your email inbox and spam folder',
-                      ),
-                      const SizedBox(height: 20),
-                      _buildInstructionStep(
-                        '2',
-                        'Click the verification link in the email',
-                      ),
-                      const SizedBox(height: 20),
-                      _buildInstructionStep(
-                        '✓',
-                        'You\'ll be automatically signed in',
-                        isCheckmark: true,
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const Spacer(),
-                
-                // Error message
-                if (_error != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _error!,
-                            style: TextStyle(
-                              color: Colors.red.shade700,
-                              fontSize: 14,
-                            ),
-                          ),
+            child: ConstrainedBox( // FIXED: Added ConstrainedBox for minimum height
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - 
+                          MediaQuery.of(context).padding.top - 48, // Account for padding
+              ),
+              child: IntrinsicHeight( // FIXED: Added IntrinsicHeight
+                child: Column(
+                  children: [
+                    const SizedBox(height: 60),
+                    
+                    // Blue circular email icon
+                    ScaleTransition(
+                      scale: _pulseAnimation,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF4285F4), // Google blue
+                          shape: BoxShape.circle,
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-                
-                // Resend Email Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton(
-                    onPressed: _canResend && !_isResending ? _resendEmail : null,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF4285F4),
-                      side: const BorderSide(color: Color(0xFF4285F4), width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
+                        child: const Icon(
+                          Icons.email_outlined,
+                          size: 60,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_isResending) ...[
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
-                            ),
+                    
+                    const SizedBox(height: 40),
+                    
+                    // Check Your Email title
+                    const Text(
+                      'Check Your Email',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Subtitle message
+                    const Text(
+                      'We\'ve sent a verification link to',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF666666),
+                        fontWeight: FontWeight.w400,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Email address
+                    Text(
+                      widget.email,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF4285F4),
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 40),
+                    
+                    // Numbered instructions
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
                           ),
-                          const SizedBox(width: 8),
-                        ] else ...[
-                          const Icon(Icons.refresh, size: 18),
-                          const SizedBox(width: 8),
                         ],
-                        Text(
-                          _isResending 
-                            ? 'Sending...'
-                            : _canResend 
-                              ? 'Resend Email'
-                              : 'Resend Email (${_resendCooldown}s)',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                      ),
+                      child: Column(
+                        children: [
+                          _buildInstructionStep(
+                            '1',
+                            'Check your email inbox and spam folder',
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Back to Sign In Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _goToLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4285F4),
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
+                          const SizedBox(height: 20),
+                          _buildInstructionStep(
+                            '2',
+                            'Click the verification link in the email',
+                          ),
+                          const SizedBox(height: 20),
+                          _buildInstructionStep(
+                            '✓',
+                            'You\'ll be automatically signed in',
+                            isCheckmark: true,
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.arrow_back, size: 18),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Back to Sign In',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                    
+                    const Spacer(), // FIXED: Use Spacer instead of SizedBox
+                    
+                    // Error message
+                    if (_error != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    
+                    // Resend Email Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: _canResend && !_isResending ? _resendEmail : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF4285F4),
+                          side: const BorderSide(color: Color(0xFF4285F4), width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
                           ),
                         ),
-                      ],
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_isResending) ...[
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ] else ...[
+                              const Icon(Icons.refresh, size: 18),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(
+                              _isResending 
+                                ? 'Sending...'
+                                : _canResend 
+                                  ? 'Resend Email'
+                                  : 'Resend Email (${_resendCooldown}s)',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Back to Sign In Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _goToLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4285F4),
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.arrow_back, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Back to Sign In',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Footer text
+                    Text(
+                      'Didn\'t receive the email? Check your spam folder or contact support',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 24),
+                  ],
                 ),
-                
-                const SizedBox(height: 24),
-                
-                // Footer text
-                Text(
-                  'Didn\'t receive the email? Check your spam folder or contact support',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           ),
         ),

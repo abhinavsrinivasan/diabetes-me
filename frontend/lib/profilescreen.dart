@@ -318,25 +318,37 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     // Dismiss keyboard first
     _dismissKeyboard();
     
-    final token = await AuthService().getToken();
-    final res = await http.post(
-      Uri.parse('$baseUrl/progress'),
-      headers: {"Content-Type": "application/json", "Authorization": "Bearer $token"},
-      body: json.encode({type: parsed}),
-    );
-    if (res.statusCode == 200) {
-      // Clear the input field
-      if (type == 'carbs') carbsInput.clear();
-      else if (type == 'sugar') sugarInput.clear();
-      else if (type == 'exercise') exerciseInput.clear();
+    try {
+      final success = await AuthService().updateProgress({type: parsed});
       
-      fetchProfile();
+      if (success) {
+        // Clear the input field
+        if (type == 'carbs') carbsInput.clear();
+        else if (type == 'sugar') sugarInput.clear();
+        else if (type == 'exercise') exerciseInput.clear();
+        
+        // Refresh the profile data to update the UI
+        await fetchProfile();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Added $parsed ${type == 'exercise' ? 'minutes' : 'g'} to $type!"),
+            backgroundColor: Colors.green[600],
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      } else {
+        throw Exception('Failed to update progress');
+      }
+    } catch (e) {
+      debugPrint('Error updating progress: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Added $parsed ${type == 'exercise' ? 'minutes' : 'g'} to $type!"),
-          backgroundColor: Colors.green[600],
+          content: Text("Failed to update $type progress"),
+          backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
