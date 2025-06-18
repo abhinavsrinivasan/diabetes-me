@@ -6,6 +6,14 @@ class AuthService {
   final _supabase = Supabase.instance.client;
   final _storage = const FlutterSecureStorage();
 
+  // Add this flag to track password reset sessions
+  static bool _isPasswordResetFlow = false;
+  
+  // Call this when starting password reset flow
+  static void setPasswordResetFlow(bool isReset) {
+    _isPasswordResetFlow = isReset;
+  }
+
   // Get current user
   User? get currentUser => _supabase.auth.currentUser;
   
@@ -157,18 +165,12 @@ class AuthService {
     }
   }
 
-  // NEW: Check if current session is a password reset session
+  // UPDATED: Check if current session is a password reset session
   bool isPasswordResetSession() {
-    final session = _supabase.auth.currentSession;
-    if (session == null) return false;
-    
-    // Check if this is a recovery session (password reset)
-    // Supabase sets specific metadata for recovery sessions
-    return session.user?.aud == 'authenticated' && 
-           session.user?.recoverySentAt != null;
+    return _isPasswordResetFlow;
   }
 
-  // NEW: Update password during password reset flow
+  // UPDATED: Update password during password reset flow
   Future<bool> updatePasswordFromReset(String newPassword) async {
     try {
       if (!isPasswordResetSession()) {
@@ -178,6 +180,10 @@ class AuthService {
       await _supabase.auth.updateUser(
         UserAttributes(password: newPassword),
       );
+      
+      // Clear the password reset flag after successful update
+      _isPasswordResetFlow = false;
+      
       return true;
     } catch (e) {
       print('Update password error: $e');
@@ -382,10 +388,11 @@ class AuthService {
     }
   }
 
-  // Sign out
+  // UPDATED: Sign out with password reset flag clearing
   Future<void> logout() async {
     await _supabase.auth.signOut();
     await _storage.delete(key: 'supabase_session');
+    _isPasswordResetFlow = false; // Clear flag
     // Keep remember me data unless user explicitly logs out
   }
 
@@ -395,6 +402,7 @@ class AuthService {
     await _storage.delete(key: 'supabase_session');
     await _storage.delete(key: 'remember_email');
     await _storage.delete(key: 'remember_me');
+    _isPasswordResetFlow = false; // Clear flag
   }
 
   // Get stored token (for compatibility)

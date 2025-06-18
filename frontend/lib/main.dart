@@ -94,6 +94,7 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
     print('🔗 Processing deep link: $uri');
     print('🔗 Scheme: ${uri.scheme}, Host: ${uri.host}');
     print('🔗 Query parameters: ${uri.queryParameters}');
+    print('🔗 Fragment: ${uri.fragment}');
     
     if (uri.scheme == 'com.abhinavsrinivasan.diabetesme') {
       if (uri.host == 'login-callback') {
@@ -102,6 +103,8 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
       } else if (uri.host == 'password-reset') {
         // Handle password reset
         await _handlePasswordReset(uri);
+      } else {
+        print('⚠️ Unknown deep link host: ${uri.host}');
       }
     }
   }
@@ -159,17 +162,59 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
   }
 
   Future<void> _handlePasswordReset(Uri uri) async {
+    print('🔐 Handling password reset deep link...');
+    
     final code = uri.queryParameters['code'];
     final accessToken = uri.queryParameters['access_token'];
     final type = uri.queryParameters['type'];
     
+    print('🔗 Code present: ${code != null}');
+    print('🔗 Access token present: ${accessToken != null}');
+    print('🔗 Type: $type');
+
     try {
       if (code != null) {
+        print('🔄 Processing authorization code for password reset...');
+        
+        // SET THE PASSWORD RESET FLAG BEFORE ESTABLISHING SESSION
+        AuthService.setPasswordResetFlow(true);
+        
         // Handle authorization code flow for password reset
         final response = await Supabase.instance.client.auth.getSessionFromUrl(uri);
         
         if (response.session != null) {
-          print('🔄 Password reset session established');
+          print('✅ Password reset session established');
+          
+          // IMPORTANT: Wait a moment for the session to be properly set
+          await Future.delayed(const Duration(milliseconds: 500));
+          
+          // Navigate directly to password reset screen
+          if (mounted && _navigatorKey.currentState != null) {
+            _navigatorKey.currentState!.pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => const PasswordResetScreen(),
+              ),
+              (route) => false,
+            );
+          }
+        } else {
+          AuthService.setPasswordResetFlow(false); // Clear flag on failure
+          throw Exception('Failed to establish password reset session');
+        }
+      } else if (type == 'recovery' && accessToken != null) {
+        print('🔄 Processing legacy token for password reset...');
+        
+        // SET THE PASSWORD RESET FLAG BEFORE ESTABLISHING SESSION
+        AuthService.setPasswordResetFlow(true);
+        
+        // Handle legacy token flow for password reset
+        final response = await Supabase.instance.client.auth.setSession(accessToken);
+        
+        if (response.session != null) {
+          print('✅ Password reset session set via legacy flow');
+          
+          // Wait a moment for the session to be properly set
+          await Future.delayed(const Duration(milliseconds: 500));
           
           // Navigate to password reset screen
           if (mounted && _navigatorKey.currentState != null) {
@@ -180,27 +225,16 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
               (route) => false,
             );
           }
+        } else {
+          AuthService.setPasswordResetFlow(false); // Clear flag on failure
+          throw Exception('Failed to set password reset session');
         }
-      } else if (type == 'recovery' && accessToken != null) {
-        // Handle legacy token flow for password reset
-        final response = await Supabase.instance.client.auth.setSession(accessToken);
-        
-        if (response.session != null) {
-          print('🔄 Password reset session set');
-          
-          // Navigate to password reset screen
-          if (mounted && _navigatorKey.currentContext != null) {
-            _navigatorKey.currentState!.pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (context) => const PasswordResetScreen(),
-              ),
-              (route) => false,
-            );
-          }
-        }
+      } else {
+        throw Exception('Invalid password reset parameters');
       }
     } catch (e) {
       print('❌ Error processing password reset: $e');
+      AuthService.setPasswordResetFlow(false); // Clear flag on error
       _showErrorDialog('Error processing password reset: $e');
     }
   }
