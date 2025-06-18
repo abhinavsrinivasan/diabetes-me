@@ -25,7 +25,29 @@ class BloodSugarEntry {
     };
   }
 
+  // For Supabase insertion (without id, let database generate it)
+  Map<String, dynamic> toSupabaseInsert(String userId) {
+    return {
+      'user_id': userId,
+      'value': value,
+      'timestamp': timestamp.toIso8601String(),
+      'context': context,
+      'note': note,
+    };
+  }
+
   factory BloodSugarEntry.fromJson(Map<String, dynamic> json) {
+    return BloodSugarEntry(
+      id: json['id'],
+      value: json['value'],
+      timestamp: DateTime.parse(json['timestamp']),
+      context: json['context'],
+      note: json['note'],
+    );
+  }
+
+  // Factory for Supabase data
+  factory BloodSugarEntry.fromSupabase(Map<String, dynamic> json) {
     return BloodSugarEntry(
       id: json['id'],
       value: json['value'],

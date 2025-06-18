@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'features/recipes/models/recipe.dart';
 import 'services/auth_service.dart';
 import 'dart:io' show Platform;
 
 class RecipeUtils {
+  static final _supabase = Supabase.instance.client;
+  
   // Fixed: Use consistent port 5001 across all platforms
   static final String baseUrl = kIsWeb 
     ? 'http://127.0.0.1:5001' 
@@ -15,9 +17,9 @@ class RecipeUtils {
         ? 'http://192.168.1.248:5001'  // Use your actual IP
         : 'http://10.0.2.2:5001';      // Android emulator
   
-  static Future<String?> _getUserEmail() async {
-    final user = AuthService().currentUser;
-    return user?.email;
+  static Future<String?> _getUserId() async {
+    final user = _supabase.auth.currentUser;
+    return user?.id;
   }
   
   // Add recipe nutrition to daily goals
@@ -54,61 +56,147 @@ class RecipeUtils {
     }
   }
   
-  // Toggle favorite status
+  // Toggle favorite status - now uses Supabase
   static Future<bool> toggleFavorite(Recipe recipe) async {
-    final userEmail = await _getUserEmail();
-    if (userEmail == null) return false;
-    
-    final prefs = await SharedPreferences.getInstance();
-    final favoritesJson = prefs.getString('favorites_$userEmail');
-    List<Recipe> favorites = [];
-    
-    if (favoritesJson != null) {
-      final List<dynamic> favoritesList = json.decode(favoritesJson);
-      favorites = favoritesList.map((item) => Recipe.fromJson(item)).toList();
+    try {
+      final userId = await _getUserId();
+      if (userId == null) {
+        debugPrint('Error: User not logged in');
+        return false;
+      }
+      
+      // Check if recipe is already favorited
+      final existingFavorite = await _supabase
+          .from('user_favorite_recipes')
+          .select()
+          .eq('user_id', userId)
+          .eq('recipe_id', recipe.id)
+          .maybeSingle();
+      
+      if (existingFavorite != null) {
+        // Remove from favorites
+        await _supabase
+            .from('user_favorite_recipes')
+            .delete()
+            .eq('user_id', userId)
+            .eq('recipe_id', recipe.id);
+        
+        debugPrint('✅ Removed recipe ${recipe.title} from favorites');
+        return false;
+      } else {
+        // Add to favorites
+        await _supabase
+            .from('user_favorite_recipes')
+            .insert({
+              'user_id': userId,
+              'recipe_id': recipe.id,
+              'recipe_data': recipe.toJson(),
+            });
+        
+        debugPrint('✅ Added recipe ${recipe.title} to favorites');
+        return true;
+      }
+    } catch (e) {
+      debugPrint('❌ Error toggling favorite: $e');
+      return false;
     }
-    
-    bool isFavorite = favorites.any((r) => r.id == recipe.id);
-    
-    if (isFavorite) {
-      favorites.removeWhere((r) => r.id == recipe.id);
-    } else {
-      favorites.add(recipe);
-    }
-    
-    await prefs.setString(
-      'favorites_$userEmail',
-      json.encode(favorites.map((r) => r.toJson()).toList()),
-    );
-    
-    return !isFavorite;
   }
   
-  // Check if recipe is favorite
+  // Check if recipe is favorite - now uses Supabase
   static Future<bool> isFavorite(Recipe recipe) async {
-    final userEmail = await _getUserEmail();
-    if (userEmail == null) return false;
-    
-    final prefs = await SharedPreferences.getInstance();
-    final favoritesJson = prefs.getString('favorites_$userEmail');
-    if (favoritesJson == null) return false;
-    
-    final List<dynamic> favoritesList = json.decode(favoritesJson);
-    final favorites = favoritesList.map((item) => Recipe.fromJson(item)).toList();
-    
-    return favorites.any((r) => r.id == recipe.id);
+    try {
+      final userId = await _getUserId();
+      if (userId == null) return false;
+      
+      final favorite = await _supabase
+          .from('user_favorite_recipes')
+          .select()
+          .eq('user_id', userId)
+          .eq('recipe_id', recipe.id)
+          .maybeSingle();
+      
+      return favorite != null;
+    } catch (e) {
+      debugPrint('❌ Error checking if favorite: $e');
+      return false;
+    }
   }
   
-  // Get all favorite recipes
+  // Get all favorite recipes - now uses Supabase
   static Future<List<Recipe>> getFavoriteRecipes() async {
-    final userEmail = await _getUserEmail();
-    if (userEmail == null) return [];
-    
-    final prefs = await SharedPreferences.getInstance();
-    final favoritesJson = prefs.getString('favorites_$userEmail');
-    if (favoritesJson == null) return [];
-    
-    final List<dynamic> favoritesList = json.decode(favoritesJson);
-    return favoritesList.map((item) => Recipe.fromJson(item)).toList();
+    try {
+      final userId = await _getUserId();
+      if (userId == null) return [];
+      
+      final response = await _supabase
+          .from('user_favorite_recipes')
+          .select('recipe_data')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+      
+      return response
+          .map<Recipe>((item) => Recipe.fromJson(item['recipe_data']))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Error fetching favorite recipes: $e');
+      return [];
+    }
+  }
+
+  // Remove specific favorite recipe
+  static Future<bool> removeFavorite(int recipeId) async {
+    try {
+      final userId = await _getUserId();
+      if (userId == null) return false;
+      
+      await _supabase
+          .from('user_favorite_recipes')
+          .delete()
+          .eq('user_id', userId)
+          .eq('recipe_id', recipeId);
+      
+      debugPrint('✅ Removed recipe from favorites');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error removing favorite: $e');
+      return false;
+    }
+  }
+
+  // Clear all favorite recipes
+  static Future<bool> clearAllFavorites() async {
+    try {
+      final userId = await _getUserId();
+      if (userId == null) return false;
+      
+      await _supabase
+          .from('user_favorite_recipes')
+          .delete()
+          .eq('user_id', userId);
+      
+      debugPrint('✅ Cleared all favorite recipes');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error clearing favorites: $e');
+      return false;
+    }
+  }
+
+  // Get favorites count
+  static Future<int> getFavoritesCount() async {
+    try {
+      final userId = await _getUserId();
+      if (userId == null) return 0;
+      
+      final response = await _supabase
+          .from('user_favorite_recipes')
+          .select('id', const FetchOptions(count: CountOption.exact))
+          .eq('user_id', userId);
+      
+      return response.count ?? 0;
+    } catch (e) {
+      debugPrint('❌ Error getting favorites count: $e');
+      return 0;
+    }
   }
 }

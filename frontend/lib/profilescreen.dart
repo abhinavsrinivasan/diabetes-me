@@ -38,6 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   TextEditingController noteController = TextEditingController();
 
   String? imageUrl;
+  bool isLoadingImage = false;
   String? userEmail;
   Uint8List? pickedImageBytes;
   bool isEditingBio = false;
@@ -68,7 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
     _tabController = TabController(length: 3, vsync: this);
     fetchProfile();
-    loadSavedImage();
+    loadProfilePicture();
     loadFavoriteRecipes();
     loadBloodSugarEntries();
   }
@@ -83,6 +84,300 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     _tabController.dispose();
     super.dispose();
   }
+
+  // Add these methods to your ProfileScreen class (_ProfileScreenState)
+
+Future<void> loadProfilePicture() async {
+  try {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    // Get profile from Supabase to check if there's a profile picture URL
+    final profile = await AuthService().getProfile();
+    final profilePictureUrl = profile?['profile_picture_url'];
+    
+    if (profilePictureUrl != null && profilePictureUrl.isNotEmpty) {
+      setState(() {
+        imageUrl = profilePictureUrl;
+      });
+    }
+  } catch (e) {
+    debugPrint('Error loading profile picture: $e');
+  }
+}
+
+Future<void> pickAndUploadImage() async {
+  final picker = ImagePicker();
+  final pickedFile = await picker.pickImage(
+    source: ImageSource.gallery,
+    maxWidth: 500, // Limit size for better performance
+    maxHeight: 500,
+    imageQuality: 70,
+  );
+  
+  if (pickedFile == null) return;
+
+  try {
+    setState(() {
+      isLoadingImage = true; // Add this boolean to your state
+    });
+
+    final user = AuthService().currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user');
+    }
+
+    // Read the image file
+    final imageBytes = await pickedFile.readAsBytes();
+    
+    // Create a unique filename
+    final fileExtension = pickedFile.path.split('.').last;
+    final fileName = '${user.id}/profile_picture.$fileExtension';
+    
+    // Upload to Supabase Storage
+    final supabase = Supabase.instance.client;
+    
+    // Delete old profile picture if it exists
+    try {
+      final oldProfile = await AuthService().getProfile();
+      final oldUrl = oldProfile?['profile_picture_url'];
+      if (oldUrl != null && oldUrl.isNotEmpty) {
+        // Extract filename from old URL to delete it
+        final oldFileName = oldUrl.split('/').last;
+        await supabase.storage
+            .from('profile-pictures')
+            .remove(['${user.id}/$oldFileName']);
+      }
+    } catch (e) {
+      debugPrint('Could not delete old profile picture: $e');
+    }
+
+    // Upload new image
+    await supabase.storage
+        .from('profile-pictures')
+        .uploadBinary(
+          fileName,
+          imageBytes,
+          fileOptions: const FileOptions(
+            cacheControl: '3600',
+            upsert: true, // Overwrite if exists
+          ),
+        );
+
+    // Get the public URL
+    final publicUrl = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(fileName);
+
+    // Update the profile in the database
+    final success = await AuthService().updateProfile({
+      'profile_picture_url': publicUrl,
+    });
+
+    if (success) {
+      setState(() {
+        imageUrl = publicUrl;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Profile picture updated!'),
+          backgroundColor: Colors.green[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else {
+      throw Exception('Failed to update profile in database');
+    }
+
+  } catch (e) {
+    debugPrint('Error uploading profile picture: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to upload profile picture: $e'),
+        backgroundColor: Colors.red[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  } finally {
+    setState(() {
+      isLoadingImage = false;
+    });
+  }
+}
+
+// Update your existing pickImage method to call the new one
+Future<void> pickImage() async {
+  await pickAndUploadImage();
+}
+
+// Add this method to delete profile picture
+Future<void> deleteProfilePicture() async {
+  try {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    setState(() {
+      isLoadingImage = true;
+    });
+
+    final supabase = Supabase.instance.client;
+    
+    // Get current profile picture URL
+    final profile = await AuthService().getProfile();
+    final currentUrl = profile?['profile_picture_url'];
+    
+    if (currentUrl != null && currentUrl.isNotEmpty) {
+      // Extract filename and delete from storage
+      final fileName = currentUrl.split('/').last;
+      await supabase.storage
+          .from('profile-pictures')
+          .remove(['${user.id}/$fileName']);
+    }
+
+    // Update profile to remove URL
+    final success = await AuthService().updateProfile({
+      'profile_picture_url': '',
+    });
+
+    if (success) {
+      setState(() {
+        imageUrl = null;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Profile picture removed!'),
+          backgroundColor: Colors.orange[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+
+  } catch (e) {
+    debugPrint('Error deleting profile picture: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to delete profile picture: $e'),
+        backgroundColor: Colors.red[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  } finally {
+    setState(() {
+      isLoadingImage = false;
+    });
+  }
+}
+
+// Updated widget build method for profile picture section
+Widget buildProfilePictureSection() {
+  return GestureDetector(
+    onTap: pickImage,
+    onLongPress: () {
+      // Show options to change or delete
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Change Profile Picture'),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickImage();
+                },
+              ),
+              if (imageUrl != null && imageUrl!.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('Remove Profile Picture'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    deleteProfilePicture();
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.cancel),
+                title: const Text('Cancel'),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+    child: Container(
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade600],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.deepPurple.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          ClipOval(
+            child: imageUrl != null && imageUrl!.isNotEmpty
+                ? Image.network(
+                    imageUrl!,
+                    fit: BoxFit.cover,
+                    width: 100,
+                    height: 100,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('Error loading profile image: $error');
+                      return const Icon(
+                        Icons.person,
+                        size: 50,
+                        color: Colors.white,
+                      );
+                    },
+                  )
+                : const Icon(Icons.person, size: 50, color: Colors.white),
+          ),
+          if (isLoadingImage)
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withOpacity(0.5),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
 
   Future<void> loadSavedImage() async {
     final prefs = await SharedPreferences.getInstance();
@@ -132,74 +427,132 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     }
   }
 
-  Future<void> loadFavoriteRecipes() async {
+  // Replace this method in your profilescreen.dart
+
+Future<void> loadFavoriteRecipes() async {
+  try {
     final favorites = await RecipeUtils.getFavoriteRecipes();
     setState(() {
       favoriteRecipes = favorites;
     });
+    debugPrint('✅ Loaded ${favoriteRecipes.length} favorite recipes');
+  } catch (e) {
+    debugPrint('❌ Error loading favorite recipes: $e');
   }
+}
 
-  Future<void> loadBloodSugarEntries() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (userEmail == null) {
-      final token = await AuthService().getToken();
-      if (token != null) {
-        final parts = token.split('.');
-        if (parts.length == 3) {
-          final payload = json.decode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
-          userEmail = payload['sub'] ?? payload['email'];
-        }
-      }
-    }
-    
-    if (userEmail != null) {
-      final entriesJson = prefs.getString('blood_sugar_$userEmail');
-      if (entriesJson != null) {
-        final List<dynamic> entriesList = json.decode(entriesJson);
-        setState(() {
-          bloodSugarEntries = entriesList.map((item) => BloodSugarEntry.fromJson(item)).toList();
-          bloodSugarEntries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-        });
-      }
-    }
-  }
+// Add this method to handle removing favorites with confirmation
+Future<void> removeFavoriteWithConfirmation(Recipe recipe) async {
+  final shouldRemove = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Remove from Favorites'),
+      content: Text('Remove "${recipe.title}" from your favorites?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          child: const Text('Remove'),
+        ),
+      ],
+    ),
+  );
 
-  Future<void> saveBloodSugarEntry() async {
-    _dismissKeyboard();
-    
-    final value = int.tryParse(bloodSugarController.text);
-    if (value == null) {
+  if (shouldRemove == true) {
+    try {
+      await RecipeUtils.removeFavorite(recipe.id);
+      await loadFavoriteRecipes(); // Reload the list
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text("Please enter a valid blood sugar value"),
+          content: Text('Removed "${recipe.title}" from favorites'),
+          backgroundColor: Colors.orange[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to remove from favorites'),
           backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
-      return;
+    }
+  }
+}
+
+Future<void> loadBloodSugarEntries() async {
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final response = await Supabase.instance.client
+        .from('blood_sugar_entries')
+        .select()
+        .eq('user_id', user.id)
+        .order('timestamp', ascending: false);
+
+    setState(() {
+      bloodSugarEntries = response
+          .map<BloodSugarEntry>((item) => BloodSugarEntry.fromSupabase(item))
+          .toList();
+    });
+
+    debugPrint('✅ Loaded ${bloodSugarEntries.length} blood sugar entries');
+  } catch (e) {
+    debugPrint('❌ Error loading blood sugar entries: $e');
+  }
+}
+
+Future<void> saveBloodSugarEntry() async {
+  _dismissKeyboard();
+  
+  final value = int.tryParse(bloodSugarController.text);
+  if (value == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Please enter a valid blood sugar value"),
+        backgroundColor: Colors.red[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+    return;
+  }
+
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
     }
 
     final entry = BloodSugarEntry(
-      id: const Uuid().v4(),
+      id: '', // Will be generated by database
       value: value,
       timestamp: selectedDateTime,
       context: selectedContext,
       note: noteController.text.isNotEmpty ? noteController.text : null,
     );
 
-    bloodSugarEntries.insert(0, entry);
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'blood_sugar_$userEmail',
-      json.encode(bloodSugarEntries.map((e) => e.toJson()).toList()),
-    );
+    // Insert into Supabase
+    await Supabase.instance.client
+        .from('blood_sugar_entries')
+        .insert(entry.toSupabaseInsert(user.id));
 
+    // Reload entries to get the new one
+    await loadBloodSugarEntries();
+
+    // Clear form
     bloodSugarController.clear();
     noteController.clear();
     selectedDateTime = DateTime.now();
-    setState(() {});
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -209,7 +562,45 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+  } catch (e) {
+    debugPrint('❌ Error saving blood sugar entry: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Failed to save entry: $e"),
+        backgroundColor: Colors.red[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
+}
+
+// Add this new method to delete blood sugar entries
+Future<void> deleteBloodSugarEntry(String entryId) async {
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    await Supabase.instance.client
+        .from('blood_sugar_entries')
+        .delete()
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+
+    await loadBloodSugarEntries();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Blood sugar entry deleted"),
+        backgroundColor: Colors.orange[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  } catch (e) {
+    debugPrint('❌ Error deleting blood sugar entry: $e');
+  }
+}
 
   Map<String, List<BloodSugarEntry>> getGroupedEntries() {
     final grouped = <String, List<BloodSugarEntry>>{};
@@ -1425,40 +1816,12 @@ Widget build(BuildContext context) {
             children: [
               const SizedBox(height: 20),
               // Profile Picture
-              GestureDetector(
-                onTap: pickImage,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade600],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.deepPurple.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: imageUrl != null
-                        ? (kIsWeb
-                            ? (imageUrl!.startsWith('data:') || imageUrl!.length > 200
-                                ? Image.memory(base64Decode(imageUrl!), fit: BoxFit.cover)
-                                : const Icon(Icons.person, size: 50, color: Colors.white))
-                            : Image.file(File(imageUrl!), fit: BoxFit.cover))
-                        : const Icon(Icons.person, size: 50, color: Colors.white),
-                  ),
-                ),
-              ),
+              buildProfilePictureSection(),
               const SizedBox(height: 12),
               Text(
-                "Tap to change photo",
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
+  "Tap to change • Long press for options",
+  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+),
               const SizedBox(height: 16),
               // Name
               Text(
