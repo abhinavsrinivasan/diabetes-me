@@ -718,6 +718,34 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
     );
   }
 
+  Widget _buildAttribution() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Recipes adapted from various sources including Spoonacular and enhanced with AI for diabetes management',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.blue[800],
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -810,6 +838,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
 
             const SizedBox(height: 16),
 
+            _buildAttribution(),
+
             // Active Filters Display (if any filters are applied)
             if (selectedCategory != 'All' || selectedCuisine != 'All' || 
                 carbRange.start != 0 || carbRange.end != 50 || 
@@ -879,34 +909,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> with TickerProv
                   ],
                 ),
               ),
-
-              Widget _buildAttribution() {
-  return Container(
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.blue[50],
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.blue[200]!),
-    ),
-    child: Row(
-      children: [
-        Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Recipes adapted from various sources including Spoonacular and enhanced with AI for diabetes management',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.blue[800],
-              height: 1.3,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
             if (selectedCategory != 'All' || selectedCuisine != 'All' || 
                 carbRange.start != 0 || carbRange.end != 50 || 
