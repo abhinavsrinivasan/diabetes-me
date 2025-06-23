@@ -601,6 +601,50 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
           ),
         ),
+
+        Widget _buildDisclaimer() {
+  return Container(
+    margin: const EdgeInsets.only(top: 24),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.amber[50],
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.amber[200]!),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline, color: Colors.amber[800], size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Recipe adapted from Spoonacular and enhanced for diabetes management. This app is not affiliated with Spoonacular.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.amber[900],
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This information is for educational purposes only. Always consult your healthcare provider for personalized dietary advice.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.amber[800],
+                  height: 1.4,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
         const SizedBox(height: 4),
         Text(
           label,
