@@ -131,7 +131,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey[300]!),
+            borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -269,12 +269,14 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
                       children: [
                         Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
                         const SizedBox(width: 8),
-                        Text(
-                          'Password Requirements',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
+                        Flexible(
+                          child: Text(
+                            'Password Requirements',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
                           ),
                         ),
                       ],
@@ -332,6 +334,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.check_circle_outline,
@@ -339,11 +342,13 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
             size: 16,
           ),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.blue[800],
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.blue[800],
+              ),
             ),
           ),
         ],

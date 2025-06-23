@@ -207,30 +207,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                   color: Colors.black87,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'by Chef Recipe',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              // Star Rating
-                              Row(
-                                children: [
-                                  ...List.generate(4, (index) => const Icon(
-                                    Icons.star,
-                                    color: Color(0xFFFFB800),
-                                    size: 20,
-                                  )),
-                                  const Icon(
-                                    Icons.star_border,
-                                    color: Color(0xFFFFB800),
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
+                              const SizedBox(height: 8),  
                             ],
                           ),
                         ),
