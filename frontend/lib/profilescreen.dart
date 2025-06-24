@@ -699,10 +699,15 @@ Future<void> deleteBloodSugarEntry(String entryId) async {
   }
 
   Future<void> resetProgress() async {
-    final token = await AuthService().getToken();
-    final res = await http.post(Uri.parse('$baseUrl/progress/reset'), headers: {"Authorization": "Bearer $token"});
-    if (res.statusCode == 200) {
-      fetchProfile();
+  _dismissKeyboard();
+  
+  try {
+    final success = await AuthService().resetProgress();
+    
+    if (success) {
+      // Refresh the profile data to show updated progress
+      await fetchProfile();
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text("Progress reset successfully!"),
@@ -711,8 +716,21 @@ Future<void> deleteBloodSugarEntry(String entryId) async {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
+    } else {
+      throw Exception('Failed to reset progress');
     }
+  } catch (e) {
+    debugPrint('Error resetting progress: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Failed to reset progress"),
+        backgroundColor: Colors.red[600],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
+}
 
   Future<void> updateManual(String type, String value) async {
     final parsed = int.tryParse(value);

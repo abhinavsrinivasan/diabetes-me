@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final _supabase = Supabase.instance.client;
@@ -223,60 +224,106 @@ class AuthService {
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
   // Get user profile
-  Future<Map<String, dynamic>?> getProfile() async {
+  // Replace the getProfile method in lib/services/auth_service.dart
+
+Future<Map<String, dynamic>?> getProfile() async {
+  try {
+    final user = currentUser;
+    if (user == null) return null;
+
+    // Get profile data
+    final profileResponse = await _supabase
+        .from('profiles')
+        .select()
+        .eq('id', user.id)
+        .single();
+
+    // Get goals data with fallback creation
+    Map<String, dynamic> goalsData;
     try {
-      final user = currentUser;
-      if (user == null) return null;
-
-      // Get profile data
-      final profileResponse = await _supabase
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .single();
-
-      // Get goals data
       final goalsResponse = await _supabase
           .from('goals')
           .select()
           .eq('user_id', user.id)
-          .maybeSingle();
+          .single();
+      goalsData = goalsResponse;
+    } catch (e) {
+      // Goals don't exist, create default ones
+      debugPrint('Goals not found, creating defaults: $e');
+      final defaultGoals = {
+        'user_id': user.id,
+        'carbs': 200,
+        'sugar': 50,
+        'exercise': 30,
+      };
+      
+      try {
+        await _supabase.from('goals').insert(defaultGoals);
+        goalsData = defaultGoals;
+      } catch (insertError) {
+        debugPrint('Failed to create default goals: $insertError');
+        goalsData = {'carbs': 200, 'sugar': 50, 'exercise': 30};
+      }
+    }
 
-      // Get today's progress
-      final today = DateTime.now().toIso8601String().split('T')[0];
+    // Get today's progress with fallback creation
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    Map<String, dynamic> progressData;
+    try {
       final progressResponse = await _supabase
           .from('daily_progress')
           .select()
           .eq('user_id', user.id)
           .eq('date', today)
-          .maybeSingle();
-
-      // Combine all data
-      final profile = {
-        'id': user.id,
-        'email': profileResponse['email'],
-        'name': profileResponse['name'] ?? 'User',
-        'bio': profileResponse['bio'] ?? '',
-        'profile_picture': profileResponse['profile_picture'] ?? '',
-        'goals': goalsResponse ?? {
-          'carbs': 200,
-          'sugar': 50,
-          'exercise': 30,
-        },
-        'progress': progressResponse ?? {
-          'carbs': 0,
-          'sugar': 0,
-          'exercise': 0,
-        },
-        'lastUpdated': today,
-      };
-
-      return profile;
+          .single();
+      progressData = progressResponse;
     } catch (e) {
-      print('Get profile error: $e');
-      return null;
+      // Progress doesn't exist for today, create default
+      debugPrint('Daily progress not found, creating defaults: $e');
+      final defaultProgress = {
+        'user_id': user.id,
+        'date': today,
+        'carbs': 0,
+        'sugar': 0,
+        'exercise': 0,
+      };
+      
+      try {
+        await _supabase.from('daily_progress').insert(defaultProgress);
+        progressData = defaultProgress;
+      } catch (insertError) {
+        debugPrint('Failed to create default progress: $insertError');
+        progressData = {'carbs': 0, 'sugar': 0, 'exercise': 0};
+      }
     }
+
+    // Combine all data
+    final profile = {
+      'id': user.id,
+      'email': profileResponse['email'],
+      'name': profileResponse['name'] ?? 'User',
+      'bio': profileResponse['bio'] ?? '',
+      'profile_picture': profileResponse['profile_picture'] ?? '',
+      'profile_picture_url': profileResponse['profile_picture_url'] ?? '', // Add this for the new profile picture system
+      'goals': {
+        'carbs': goalsData['carbs'] ?? 200,
+        'sugar': goalsData['sugar'] ?? 50,
+        'exercise': goalsData['exercise'] ?? 30,
+      },
+      'progress': {
+        'carbs': progressData['carbs'] ?? 0,
+        'sugar': progressData['sugar'] ?? 0,
+        'exercise': progressData['exercise'] ?? 0,
+      },
+      'lastUpdated': today,
+    };
+
+    return profile;
+  } catch (e) {
+    print('Get profile error: $e');
+    return null;
   }
+}
 
   // Update profile
   Future<bool> updateProfile(Map<String, dynamic> updates) async {
@@ -297,24 +344,76 @@ class AuthService {
   }
 
   // Update goals
-  Future<bool> updateGoals(Map<String, dynamic> goals) async {
-    try {
-      final user = currentUser;
-      if (user == null) return false;
+  // Updated AuthService methods in lib/services/auth_service.dart
 
+// Replace the updateGoals method with this fixed version:
+Future<bool> updateGoals(Map<String, dynamic> goals) async {
+  try {
+    final user = currentUser;
+    if (user == null) return false;
+
+    // First, check if goals record exists
+    final existingGoals = await _supabase
+        .from('goals')
+        .select()
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (existingGoals != null) {
+      // Update existing record
       await _supabase
           .from('goals')
-          .upsert({
+          .update(goals)
+          .eq('user_id', user.id);
+    } else {
+      // Insert new record
+      await _supabase
+          .from('goals')
+          .insert({
             'user_id': user.id,
             ...goals,
           });
-
-      return true;
-    } catch (e) {
-      print('Update goals error: $e');
-      return false;
     }
+
+    return true;
+  } catch (e) {
+    print('Update goals error: $e');
+    return false;
   }
+}
+
+// Replace the resetProgress method with this fixed version:
+Future<bool> resetProgress() async {
+  try {
+    final user = currentUser;
+    if (user == null) return false;
+
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    
+    // Delete existing progress for today and insert fresh record
+    await _supabase
+        .from('daily_progress')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('date', today);
+    
+    // Insert fresh progress with zeros
+    await _supabase
+        .from('daily_progress')
+        .insert({
+          'user_id': user.id,
+          'date': today,
+          'carbs': 0,
+          'sugar': 0,
+          'exercise': 0,
+        });
+
+    return true;
+  } catch (e) {
+    print('Reset progress error: $e');
+    return false;
+  }
+}
 
   // Update daily progress
   Future<bool> updateProgress(Map<String, dynamic> progress) async {
@@ -363,30 +462,7 @@ class AuthService {
     }
   }
 
-  // Reset daily progress
-  Future<bool> resetProgress() async {
-    try {
-      final user = currentUser;
-      if (user == null) return false;
-
-      final today = DateTime.now().toIso8601String().split('T')[0];
-      
-      await _supabase
-          .from('daily_progress')
-          .upsert({
-            'user_id': user.id,
-            'date': today,
-            'carbs': 0,
-            'sugar': 0,
-            'exercise': 0,
-          });
-
-      return true;
-    } catch (e) {
-      print('Reset progress error: $e');
-      return false;
-    }
-  }
+  
 
   // UPDATED: Sign out with password reset flag clearing
   Future<void> logout() async {

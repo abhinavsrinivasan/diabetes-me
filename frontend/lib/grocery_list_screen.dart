@@ -76,34 +76,6 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     );
   }
 
-  Map<String, IconData> getCategoryIcons() {
-    return {
-      'Protein': Icons.set_meal,
-      'Dairy & Eggs': Icons.egg_alt,
-      'Fruits': Icons.apple,
-      'Vegetables': Icons.eco,
-      'Grains & Bread': Icons.grain,
-      'Condiments & Spices': Icons.kitchen,
-      'Nuts & Seeds': Icons.scatter_plot,
-      'Legumes': Icons.circle,
-      'Other': Icons.shopping_basket,
-    };
-  }
-
-  Map<String, Color> getCategoryColors() {
-    return {
-      'Protein': Colors.red[300]!,
-      'Dairy & Eggs': Colors.yellow[300]!,
-      'Fruits': Colors.orange[300]!,
-      'Vegetables': Colors.green[300]!,
-      'Grains & Bread': Colors.brown[300]!,
-      'Condiments & Spices': Colors.purple[300]!,
-      'Nuts & Seeds': Colors.amber[300]!,
-      'Legumes': Colors.teal[300]!,
-      'Other': Colors.grey[300]!,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -112,7 +84,6 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       );
     }
 
-    final groupedItems = GroceryListService.groupByCategory(groceryItems);
     final completedCount = groceryItems.where((item) => item.isCompleted).length;
     final totalCount = groceryItems.length;
 
@@ -314,87 +285,10 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: groupedItems.keys.length,
+                    itemCount: groceryItems.length,
                     itemBuilder: (context, index) {
-                      final category = groupedItems.keys.elementAt(index);
-                      final items = groupedItems[category]!;
-                      final categoryIcons = getCategoryIcons();
-                      final categoryColors = getCategoryColors();
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            // Category header
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: categoryColors[category]!.withOpacity(0.1),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(16),
-                                  topRight: Radius.circular(16),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: categoryColors[category],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      categoryIcons[category],
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      category,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: categoryColors[category],
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      '${items.length}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Category items
-                            ...items.map((item) => _buildGroceryItem(item)).toList(),
-                          ],
-                        ),
-                      );
+                      final item = groceryItems[index];
+                      return _buildGroceryItem(item);
                     },
                   ),
           ),
@@ -405,11 +299,18 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
 
   Widget _buildGroceryItem(GroceryItem item) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[100]!),
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
