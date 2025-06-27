@@ -441,19 +441,19 @@ diabetes-and-me/
 
 ## 🎯 Future Roadmap
 
-### **Short Term (Q1 2025)**
+### **Short Term**
 - [ ] **Android App Store** release
 - [ ] **Apple Watch** companion app
 - [ ] **Meal planning** calendar integration
 - [ ] **Nutritionist chat** feature
 
-### **Medium Term (Q2-Q3 2025)**
+### **Medium Term**
 - [ ] **CGM Integration** (Continuous Glucose Monitor)
 - [ ] **Recipe video tutorials**
 - [ ] **Social features** (recipe sharing)
 - [ ] **Advanced analytics** dashboard
 
-### **Long Term (2025+)**
+### **Long Term**
 - [ ] **Healthcare provider** integration
 - [ ] **Multi-language** support
 - [ ] **Offline-first** architecture
@@ -482,10 +482,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support & Contact
 
-- **App Store**: [Download Diabetes&Me](https://apps.apple.com/app/diabetes-me)
-- **Email**: support@diabetesandme.app
-- **Issues**: [GitHub Issues](https://github.com/yourusername/diabetes-and-me/issues)
-- **Documentation**: [Full Documentation](https://docs.diabetesandme.app)
+- **Email**: diabetesandme.app@gmail.com
+- **Privacy**: [Full Documentation](https://docs.diabetesandme.app)
+- - **Support**: [Full Documentation](https://abhinavsrinivasan.github.io/diabetes-me-privacy/)
 
 ---
 
