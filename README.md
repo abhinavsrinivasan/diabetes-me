@@ -1,106 +1,405 @@
-# Diabetes&Me
+# Diabetes&Me 🩺📱
 
 > **A comprehensive diabetes-friendly lifestyle companion app that helps users discover recipes, track nutrition, scan food products, and manage their health goals with AI-powered insights.**
 
-[![App Store](https://img.shields.io/badge/App_Store-Published-blue?style=for-the-badge&logo=app-store)](https://apps.apple.com/app/diabetes-me)
 [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.io)
 [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
 
-## Overview
+## 🌟 Overview
 
 **Diabetes&Me** is a sophisticated healthcare application designed specifically for people managing diabetes. The app combines recipe discovery, nutrition tracking, barcode scanning, and AI-powered ingredient insights to help users make informed dietary decisions and maintain healthy blood sugar levels.
 
-**Now Available on the App Store!**
+**🎉 Now Available on the App Store!**
 
-### Key Features
+### ✨ Key Features
 
-- **Smart Recipe Discovery** - Browse 200+ curated diabetes-friendly recipes with advanced filtering
-- **Real-time Nutrition Tracking** - Monitor daily carbs, sugar, and exercise with animated progress indicators
-- **Barcode Scanner** - Scan packaged foods for instant diabetes-friendliness ratings and nutrition facts
-- **AI-Powered Ingredient Insights** - Get personalized ingredient substitutions and diabetes-specific advice
-- **Smart Grocery Lists** - Auto-categorized shopping lists with ingredients from recipes
-- **Blood Sugar Tracking** - Log and analyze blood glucose readings with context and trends
-- **Favorites System** - Save and sync favorite recipes across devices
-- **Comprehensive Profile Management** - Track goals, progress, and health metrics
+- 🍽️ **Smart Recipe Discovery** - Browse 200+ curated diabetes-friendly recipes with advanced filtering
+- 📊 **Real-time Nutrition Tracking** - Monitor daily carbs, sugar, and exercise with animated progress indicators
+- 📱 **Barcode Scanner** - Scan packaged foods for instant diabetes-friendliness ratings and nutrition facts
+- 🤖 **AI-Powered Ingredient Insights** - Get personalized ingredient substitutions and diabetes-specific advice
+- 🛒 **Smart Grocery Lists** - Auto-categorized shopping lists with ingredients from recipes
+- 📈 **Blood Sugar Tracking** - Log and analyze blood glucose readings with context and trends
+- ❤️ **Favorites System** - Save and sync favorite recipes across devices
+- 👤 **Comprehensive Profile Management** - Track goals, progress, and health metrics
 
 ---
 
 ## 🏗️ Architecture Overview
 
-### System Architecture
+### 🌐 High-Level System Architecture
 
 ```mermaid
 graph TB
-    subgraph "Frontend (Flutter)"
-        A[Flutter App] --> B[Authentication Layer]
-        A --> C[Recipe Management]
-        A --> D[Nutrition Tracking]
-        A --> E[Barcode Scanner]
-        A --> F[AI Insights]
+    subgraph "📱 Mobile Layer"
+        iOS[📱 iOS App<br/>Flutter/Dart]
+        Android[🤖 Android App<br/>Flutter/Dart]
     end
     
-    subgraph "Backend Services"
-        G[Supabase] --> H[(PostgreSQL)]
-        G --> I[Authentication]
-        G --> J[Storage]
-        G --> K[Real-time]
+    subgraph "🔧 Application Layer"
+        AuthService[🔐 Authentication<br/>JWT + Email Verification]
+        RecipeService[🍽️ Recipe Management<br/>Search, Filter, Favorites]
+        NutritionService[📊 Nutrition Tracking<br/>Goals, Progress, Analytics]
+        ScannerService[📱 Barcode Scanner<br/>Product Recognition]
+        AIService[🤖 AI Insights<br/>Ingredient Intelligence]
+        GroceryService[🛒 Grocery Lists<br/>Auto-categorization]
+        HealthService[❤️ Health Tracking<br/>Blood Sugar, Trends]
     end
     
-    subgraph "External APIs"
-        L[OpenAI GPT-3.5]
-        M[OpenFoodFacts]
-        N[Spoonacular API]
+    subgraph "☁️ Backend Infrastructure"
+        direction TB
+        Supabase[🗄️ Supabase BaaS]
+        PostgreSQL[(🐘 PostgreSQL<br/>Primary Database)]
+        Auth[🔑 Supabase Auth<br/>User Management]
+        Storage[💾 Supabase Storage<br/>Profile Images, Files]
+        Realtime[⚡ Real-time Engine<br/>Live Updates]
+        EdgeFunctions[⚡ Edge Functions<br/>Serverless Logic]
     end
     
-    A --> G
-    F --> L
-    E --> M
-    C --> N
-    
-    subgraph "Cloud Infrastructure"
-        O[Supabase Storage]
-        P[CDN]
+    subgraph "🌍 External Services"
+        OpenAI[🧠 OpenAI GPT-3.5<br/>Ingredient Insights]
+        OpenFood[🏷️ OpenFoodFacts<br/>Product Database]
+        Spoonacular[🍳 Spoonacular<br/>Recipe API]
+        CDN[🌐 CloudFront CDN<br/>Image Delivery]
     end
     
-    J --> O
-    O --> P
+    subgraph "📊 Data Storage"
+        UserData[(👤 User Profiles<br/>Goals, Settings)]
+        RecipeData[(🍽️ Recipe Database<br/>200+ Curated Recipes)]
+        ProgressData[(📈 Health Data<br/>Blood Sugar, Nutrition)]
+        CacheData[(⚡ Cache Layer<br/>AI Responses, Images)]
+    end
+    
+    iOS -.-> AuthService
+    Android -.-> AuthService
+    iOS -.-> RecipeService
+    Android -.-> RecipeService
+    iOS -.-> NutritionService
+    Android -.-> NutritionService
+    iOS -.-> ScannerService
+    Android -.-> ScannerService
+    iOS -.-> AIService
+    Android -.-> AIService
+    iOS -.-> GroceryService
+    Android -.-> GroceryService
+    iOS -.-> HealthService
+    Android -.-> HealthService
+    
+    AuthService --> Supabase
+    RecipeService --> Supabase
+    NutritionService --> Supabase
+    ScannerService --> OpenFood
+    AIService --> OpenAI
+    GroceryService --> Supabase
+    HealthService --> Supabase
+    
+    RecipeService --> Spoonacular
+    
+    Supabase --> PostgreSQL
+    Supabase --> Auth
+    Supabase --> Storage
+    Supabase --> Realtime
+    Supabase --> EdgeFunctions
+    
+    Storage --> CDN
+    
+    PostgreSQL --> UserData
+    PostgreSQL --> RecipeData
+    PostgreSQL --> ProgressData
+    PostgreSQL --> CacheData
+    
+    classDef mobileStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef serviceStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef backendStyle fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef externalStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef dataStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class iOS,Android mobileStyle
+    class AuthService,RecipeService,NutritionService,ScannerService,AIService,GroceryService,HealthService serviceStyle
+    class Supabase,PostgreSQL,Auth,Storage,Realtime,EdgeFunctions backendStyle
+    class OpenAI,OpenFood,Spoonacular,CDN externalStyle
+    class UserData,RecipeData,ProgressData,CacheData dataStyle
 ```
 
-### Data Flow Architecture
+### 🔄 Data Flow & User Journey Architecture
 
-The application follows a clean data flow pattern:
-
-```mermaidsequenceDiagram
-    participant U as User
-    participant F as Flutter App
-    participant S as Supabase
-    participant AI as OpenAI
-    participant API as External APIs
+```mermaid
+graph TD
+    subgraph "📱 User Interface Layer"
+        Login[🔐 Login/Signup Screen]
+        Home[🏠 Home Dashboard]
+        Recipes[🍽️ Recipe Browser]
+        Scanner[📱 Barcode Scanner]
+        Profile[👤 Profile Management]
+        Grocery[🛒 Grocery Lists]
+        Health[❤️ Health Tracking]
+    end
     
-    U->>F: Open App
-    F->>S: Authenticate
-    S-->>F: User Session
+    subgraph "🔧 Business Logic Layer"
+        AuthLogic[🔑 Authentication Logic<br/>• JWT Token Management<br/>• Email Verification<br/>• Password Reset]
+        RecipeLogic[🍳 Recipe Logic<br/>• Search & Filtering<br/>• Favorites Management<br/>• Nutrition Calculation]
+        ScanLogic[📊 Scan Logic<br/>• Barcode Recognition<br/>• Product Analysis<br/>• Diabetes Rating]
+        AILogic[🤖 AI Logic<br/>• Ingredient Analysis<br/>• Smart Substitutions<br/>• Health Insights]
+        HealthLogic[📈 Health Logic<br/>• Progress Tracking<br/>• Goal Management<br/>• Analytics]
+    end
     
-    U->>F: Scan Barcode
-    F->>API: Product Lookup
-    API-->>F: Nutrition Data
-    F->>AI: Generate Insights
-    AI-->>F: Health Recommendations
-    F-->>U: Diabetes Rating & Alternatives
+    subgraph "📡 API & Integration Layer"
+        SupabaseAPI[🗄️ Supabase APIs<br/>• User Management<br/>• Data CRUD<br/>• Real-time Sync]
+        OpenAIAPI[🧠 OpenAI API<br/>• GPT-3.5 Turbo<br/>• Intelligent Prompting<br/>• Response Caching]
+        ProductAPI[🏷️ Product APIs<br/>• OpenFoodFacts<br/>• Barcode Lookup<br/>• Nutrition Data]
+        RecipeAPI[🍳 Recipe APIs<br/>• Spoonacular<br/>• Recipe Search<br/>• Nutrition Facts]
+    end
     
-    U->>F: Track Nutrition
-    F->>S: Update Progress
-    S-->>F: Sync Confirmation
+    subgraph "💾 Data Persistence Layer"
+        UserDB[(👤 User Database<br/>• Profiles<br/>• Goals<br/>• Preferences)]
+        RecipeDB[(🍽️ Recipe Database<br/>• Curated Recipes<br/>• User Favorites<br/>• Categories)]
+        HealthDB[(❤️ Health Database<br/>• Blood Sugar Logs<br/>• Progress History<br/>• Analytics)]
+        CacheDB[(⚡ Cache Database<br/>• AI Responses<br/>• API Results<br/>• Images)]
+    end
     
-    U->>F: Browse Recipes
-    F->>S: Fetch Curated Recipes
-    S-->>F: Recipe Data
-    F-->>U: Personalized Results
+    Login --> AuthLogic
+    Home --> RecipeLogic
+    Home --> HealthLogic
+    Recipes --> RecipeLogic
+    Scanner --> ScanLogic
+    Scanner --> AILogic
+    Profile --> AuthLogic
+    Profile --> HealthLogic
+    Grocery --> RecipeLogic
+    Health --> HealthLogic
+    
+    AuthLogic --> SupabaseAPI
+    RecipeLogic --> SupabaseAPI
+    RecipeLogic --> RecipeAPI
+    ScanLogic --> ProductAPI
+    AILogic --> OpenAIAPI
+    HealthLogic --> SupabaseAPI
+    
+    SupabaseAPI --> UserDB
+    SupabaseAPI --> RecipeDB
+    SupabaseAPI --> HealthDB
+    OpenAIAPI --> CacheDB
+    ProductAPI --> CacheDB
+    RecipeAPI --> CacheDB
+    
+    classDef uiStyle fill:#e3f2fd,stroke:#0277bd,stroke-width:3px
+    classDef logicStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
+    classDef apiStyle fill:#fff8e1,stroke:#f57c00,stroke-width:3px
+    classDef dbStyle fill:#e8f5e8,stroke:#388e3c,stroke-width:3px
+    
+    class Login,Home,Recipes,Scanner,Profile,Grocery,Health uiStyle
+    class AuthLogic,RecipeLogic,ScanLogic,AILogic,HealthLogic logicStyle
+    class SupabaseAPI,OpenAIAPI,ProductAPI,RecipeAPI apiStyle
+    class UserDB,RecipeDB,HealthDB,CacheDB dbStyle
 ```
+
+### 🔐 Authentication & Security Flow
+
+```mermaid
+sequenceDiagram
+    participant U as 👤 User
+    participant App as 📱 Flutter App
+    participant Auth as 🔐 Supabase Auth
+    participant DB as 🗄️ Database
+    participant Email as 📧 Email Service
+    
+    Note over U,Email: 🔐 User Registration Flow
+    U->>App: Enter email & password
+    App->>Auth: Sign up request
+    Auth->>Email: Send verification email
+    Auth-->>App: User created (unverified)
+    App-->>U: Check your email message
+    
+    U->>Email: Click verification link
+    Email->>Auth: Verify email token
+    Auth->>DB: Update user status
+    Auth-->>App: Email verified
+    App-->>U: Welcome to Diabetes&Me!
+    
+    Note over U,Email: 🔑 Login Flow
+    U->>App: Enter credentials
+    App->>Auth: Sign in request
+    Auth->>DB: Validate credentials
+    DB-->>Auth: User data
+    Auth-->>App: JWT token + user info
+    App-->>U: Dashboard access
+    
+    Note over U,Email: 🔄 Password Reset Flow
+    U->>App: Forgot password
+    App->>Auth: Reset password request
+    Auth->>Email: Send reset link
+    Email-->>U: Reset email
+    U->>Email: Click reset link
+    Email->>App: Open reset screen
+    App->>Auth: Update password
+    Auth-->>App: Password updated
+    App-->>U: Login with new password
+```
+
+### 🤖 AI Integration Architecture
+
+```mermaid
+graph TB
+    subgraph "🎯 User Interaction"
+        RecipeView[🍽️ Recipe Detail View]
+        IngredientTap[👆 Tap Ingredient]
+        InsightModal[💡 Insight Modal]
+    end
+    
+    subgraph "⚡ Caching Layer"
+        LocalCache[📱 Local Cache<br/>• Recent insights<br/>• User preferences<br/>• Response optimization]
+        SupabaseCache[☁️ Cloud Cache<br/>• Shared insights<br/>• Popular queries<br/>• Performance data]
+    end
+    
+    subgraph "🧠 AI Processing Engine"
+        PromptEngine[📝 Prompt Engineering<br/>• Diabetes-specific context<br/>• Ingredient analysis<br/>• Safety guidelines]
+        OpenAIAPI[🤖 OpenAI GPT-3.5<br/>• Natural language processing<br/>• Contextual understanding<br/>• Response generation]
+        ResponseParser[🔧 Response Parser<br/>• JSON validation<br/>• Error handling<br/>• Fallback logic]
+    end
+    
+    subgraph "📊 Intelligence Features"
+        IngredientAnalysis[🔍 Ingredient Analysis<br/>• Nutritional impact<br/>• Blood sugar effects<br/>• Recipe role]
+        SmartSubstitutions[🔄 Smart Substitutions<br/>• Diabetes-friendly alternatives<br/>• Nutritional comparisons<br/>• Availability checks]
+        HealthInsights[❤️ Health Insights<br/>• Personalized advice<br/>• Portion recommendations<br/>• Timing suggestions]
+    end
+    
+    subgraph "💾 Knowledge Base"
+        DiabetesDB[(🩺 Diabetes Knowledge<br/>• Glycemic index data<br/>• Carb counting rules<br/>• Medical guidelines)]
+        IngredientDB[(🥗 Ingredient Database<br/>• Nutritional profiles<br/>• Substitution mapping<br/>• User preferences)]
+        FeedbackDB[(📈 Feedback Database<br/>• User ratings<br/>• Usage analytics<br/>• Improvement data)]
+    end
+    
+    RecipeView --> IngredientTap
+    IngredientTap --> LocalCache
+    LocalCache -->|Cache Miss| PromptEngine
+    LocalCache -->|Cache Hit| InsightModal
+    
+    PromptEngine --> OpenAIAPI
+    OpenAIAPI --> ResponseParser
+    ResponseParser --> IngredientAnalysis
+    ResponseParser --> SmartSubstitutions
+    ResponseParser --> HealthInsights
+    
+    IngredientAnalysis --> InsightModal
+    SmartSubstitutions --> InsightModal
+    HealthInsights --> InsightModal
+    
+    ResponseParser --> LocalCache
+    ResponseParser --> SupabaseCache
+    
+    PromptEngine --> DiabetesDB
+    PromptEngine --> IngredientDB
+    InsightModal --> FeedbackDB
+    
+    classDef userStyle fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+    classDef cacheStyle fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    classDef aiStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
+    classDef intelligenceStyle fill:#e8f5e8,stroke:#1b5e20,stroke-width:3px
+    classDef dbStyle fill:#fce4ec,stroke:#880e4f,stroke-width:3px
+    
+    class RecipeView,IngredientTap,InsightModal userStyle
+    class LocalCache,SupabaseCache cacheStyle
+    class PromptEngine,OpenAIAPI,ResponseParser aiStyle
+    class IngredientAnalysis,SmartSubstitutions,HealthInsights intelligenceStyle
+    class DiabetesDB,IngredientDB,FeedbackDB dbStyle
+```
+
+### 📊 Database Schema & Relationships
+
+```mermaid
+erDiagram
+    USERS ||--|| PROFILES : has
+    USERS ||--|| GOALS : sets
+    USERS ||--o{ DAILY_PROGRESS : tracks
+    USERS ||--o{ FAVORITE_RECIPES : saves
+    USERS ||--o{ GROCERY_ITEMS : creates
+    USERS ||--o{ BLOOD_SUGAR : logs
+    
+    CURATED_RECIPES ||--o{ FAVORITE_RECIPES : referenced_by
+    
+    USERS {
+        uuid id PK
+        string email UK
+        timestamp email_confirmed_at
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    PROFILES {
+        uuid id PK
+        uuid user_id FK
+        string name
+        text bio
+        string profile_picture_url
+        timestamp updated_at
+    }
+    
+    GOALS {
+        uuid id PK
+        uuid user_id FK
+        integer carbs_goal
+        integer sugar_goal
+        integer exercise_goal
+        timestamp updated_at
+    }
+    
+    DAILY_PROGRESS {
+        uuid id PK
+        uuid user_id FK
+        date progress_date
+        integer carbs_consumed
+        integer sugar_consumed
+        integer exercise_minutes
+        timestamp created_at
+    }
+    
+    CURATED_RECIPES {
+        uuid id PK
+        string title
+        string image_url
+        integer carbs_per_100g
+        integer sugar_per_100g
+        integer calories_per_100g
+        string category
+        string cuisine
+        text[] ingredients
+        text[] instructions
+        boolean approved
+        integer quality_score
+        timestamp created_at
+    }
+    
+    FAVORITE_RECIPES {
+        uuid id PK
+        uuid user_id FK
+        uuid recipe_id FK
+        jsonb recipe_data
+        timestamp created_at
+    }
+    
+    GROCERY_ITEMS {
+        uuid id PK
+        uuid user_id FK
+        string name
+        string category
+        boolean is_completed
+        timestamp created_at
+    }
+    
+    BLOOD_SUGAR {
+        uuid id PK
+        uuid user_id FK
+        integer value_mg_dl
+        string context
+        text note
+        timestamp reading_time
+        timestamp created_at
+    }
+```
+
 ---
 
-## Technology Stack
+## 🛠️ Technology Stack
 
 ### **Frontend**
 - **Flutter 3.0+** - Cross-platform mobile development
@@ -108,11 +407,6 @@ The application follows a clean data flow pattern:
 - **Provider** - State management (MVVM architecture)
 - **Material Design 3** - Modern UI components
 - **Google Fonts** - Typography system
-
-### **Backend Scripts & Data Processing**
-- **Python 3.11+** - Data curation and migration scripts
-- **Supabase Python Client** - Database operations
-- **CSV Processing** - Recipe data import and cleaning
 
 ### **Backend & Database**
 - **Supabase** - Backend-as-a-Service platform
@@ -139,37 +433,37 @@ The application follows a clean data flow pattern:
 
 ---
 
-## App Features Deep Dive
+## 📱 App Features Deep Dive
 
-### Recipe Discovery System
+### 🍽️ Recipe Discovery System
 - **Curated Database**: 200+ hand-selected, diabetes-friendly recipes
 - **Advanced Filtering**: Filter by carbs (0-50g), sugar (0-25g), cuisine, and category
 - **Smart Search**: AI-enhanced search with ingredient matching
 - **Nutrition Display**: Clear carb, sugar, and calorie information
 - **Recipe Details**: Step-by-step instructions with ingredient insights
 
-### Nutrition Tracking
+### 📊 Nutrition Tracking
 - **Daily Goals**: Customizable carbs, sugar, and exercise targets
 - **Real-time Progress**: Animated progress bars with percentage completion
 - **Smart Additions**: Add nutrition from recipes or manual input
 - **Daily Reset**: Automatic midnight reset or manual reset option
 - **Visual Feedback**: Color-coded progress indicators
 
-### Barcode Scanner
+### 📱 Barcode Scanner
 - **Universal Compatibility**: Works with most packaged food products
-- **Instant Analysis**: Real-time diabetes-friendliness rating (Red/Yellow/Green)
+- **Instant Analysis**: Real-time diabetes-friendliness rating (🟢🟡🔴)
 - **Detailed Breakdown**: Comprehensive nutrition facts per 100g
 - **Smart Alternatives**: AI-suggested healthier product alternatives
 - **Grocery Integration**: Add scanned items directly to shopping list
 
-### AI-Powered Insights
+### 🤖 AI-Powered Insights
 - **Ingredient Intelligence**: Tap any recipe ingredient for AI insights
 - **Diabetes Context**: How ingredients affect blood sugar levels
 - **Smart Substitutions**: 3 personalized alternatives per ingredient
 - **Educational Content**: Learn about nutrition without medical advice
 - **Caching System**: Optimized performance with intelligent caching
 
-### Health Tracking
+### 📈 Health Tracking
 - **Blood Sugar Logging**: Track readings with context (fasting, before/after meals)
 - **Trend Analysis**: Weekly statistics and pattern recognition
 - **Visual Charts**: Color-coded readings with health status indicators
@@ -178,46 +472,97 @@ The application follows a clean data flow pattern:
 
 ---
 
-## Key Achievements
+## 🏆 Key Achievements
 
-### **Mobile Excellence**
-- **App Store Published** - Successfully launched on Apple App Store
-- **Cross-Platform** - Single codebase for iOS and Android
-- **Offline Capability** - Core features work without internet
-- **Responsive Design** - Optimized for all screen sizes
-- **Smooth Animations** - 60fps UI with custom transitions
+### **📱 Mobile Excellence**
+- ✅ **App Store Published** - Successfully launched on Apple App Store
+- ✅ **Cross-Platform** - Single codebase for iOS and Android
+- ✅ **Offline Capability** - Core features work without internet
+- ✅ **Responsive Design** - Optimized for all screen sizes
+- ✅ **Smooth Animations** - 60fps UI with custom transitions
 
-### **Security & Privacy**
-- **GDPR Compliant** - Privacy-first data handling
-- **JWT Authentication** - Secure token-based auth system
-- **Email Verification** - Mandatory account confirmation
-- **Encrypted Storage** - Sensitive data protection
-- **Deep Link Security** - Secure password reset flows
+### **🔒 Security & Privacy**
+- ✅ **GDPR Compliant** - Privacy-first data handling
+- ✅ **JWT Authentication** - Secure token-based auth system
+- ✅ **Email Verification** - Mandatory account confirmation
+- ✅ **Encrypted Storage** - Sensitive data protection
+- ✅ **Deep Link Security** - Secure password reset flows
 
-### **Performance**
-- **Sub-200ms API Response** - Optimized database queries
-- **Intelligent Caching** - AI insights cached locally
-- **Image Optimization** - CDN-powered image delivery
-- **Efficient State Management** - Provider-based MVVM architecture
-- **Battery Optimized** - Minimal background processing
+### **⚡ Performance**
+- ✅ **Sub-200ms API Response** - Optimized database queries
+- ✅ **Intelligent Caching** - AI insights cached locally
+- ✅ **Image Optimization** - CDN-powered image delivery
+- ✅ **Efficient State Management** - Provider-based MVVM architecture
+- ✅ **Battery Optimized** - Minimal background processing
 
-### **User Experience**
-- **Intuitive Navigation** - Tab-based navigation with context-aware flows
-- **Accessibility Focused** - Screen reader support and high contrast modes
-- **Progressive Onboarding** - Guided user journey for new users
-- **Smart Defaults** - Reasonable defaults for all user preferences
-- **Error Handling** - Graceful fallbacks and informative error messages
+### **🎨 User Experience**
+- ✅ **Intuitive Navigation** - Tab-based navigation with context-aware flows
+- ✅ **Accessibility Focused** - Screen reader support and high contrast modes
+- ✅ **Progressive Onboarding** - Guided user journey for new users
+- ✅ **Smart Defaults** - Reasonable defaults for all user preferences
+- ✅ **Error Handling** - Graceful fallbacks and informative error messages
 
-### **Technical Innovation**
-- **AI Integration** - First-class OpenAI integration for health insights
-- **Real-time Sync** - Supabase real-time subscriptions
-- **Smart Barcode Scanning** - Advanced product recognition with fallbacks
-- **Recipe Curation** - Automated recipe cleaning and quality scoring
-- **Modular Architecture** - Clean separation of concerns and easy testing
+### **🔧 Technical Innovation**
+- ✅ **AI Integration** - First-class OpenAI integration for health insights
+- ✅ **Real-time Sync** - Supabase real-time subscriptions
+- ✅ **Smart Barcode Scanning** - Advanced product recognition with fallbacks
+- ✅ **Recipe Curation** - Automated recipe cleaning and quality scoring
+- ✅ **Modular Architecture** - Clean separation of concerns and easy testing
 
 ---
 
-## Project Structure
+## 🚀 Getting Started
+
+### Prerequisites
+- Flutter 3.0+ installed
+- Dart SDK 3.0+
+- iOS Simulator or Android Emulator
+- Supabase account
+- OpenAI API key (optional, for AI features)
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/diabetes-and-me.git
+   cd diabetes-and-me/frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Environment Setup**
+   ```bash
+   # Create .env file in frontend directory
+   cp .env.example .env
+   
+   # Add your API keys
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_SERVICE_ROLE_KEY=your_supabase_key
+   OPENAI_API_KEY=your_openai_key_optional
+   SPOONACULAR_API_KEY=your_spoonacular_key
+   ```
+
+4. **Database Setup**
+   ```sql
+   -- Run these SQL commands in your Supabase SQL editor
+   -- (See supabase/migrations/ for complete schema)
+   ```
+
+5. **Run the app**
+   ```bash
+   # Development mode
+   ./scripts/run_dev.sh
+   
+   # Or manually
+   flutter run --dart-define=SUPABASE_URL=your_url --dart-define=SUPABASE_SERVICE_ROLE_KEY=your_key
+   ```
+
+---
+
+## 🏗️ Project Structure
 
 ```
 diabetes-and-me/
@@ -243,7 +588,7 @@ diabetes-and-me/
 
 ---
 
-## Development Workflow
+## 🔄 Development Workflow
 
 ### **Environment Management**
 - **Development**: Local development with hot reload
@@ -265,7 +610,7 @@ diabetes-and-me/
 
 ---
 
-## Database Schema
+## 📊 Database Schema
 
 ### Core Tables
 - **`profiles`** - User profile information
@@ -278,29 +623,29 @@ diabetes-and-me/
 
 ---
 
-## Future Roadmap
+## 🎯 Future Roadmap
 
 ### **Short Term (Q1 2025)**
-- Android App Store release
-- Apple Watch companion app
-- Meal planning calendar integration
-- Nutritionist chat feature
+- [ ] **Android App Store** release
+- [ ] **Apple Watch** companion app
+- [ ] **Meal planning** calendar integration
+- [ ] **Nutritionist chat** feature
 
 ### **Medium Term (Q2-Q3 2025)**
-- CGM Integration (Continuous Glucose Monitor)
-- Recipe video tutorials
-- Social features (recipe sharing)
-- Advanced analytics dashboard
+- [ ] **CGM Integration** (Continuous Glucose Monitor)
+- [ ] **Recipe video tutorials**
+- [ ] **Social features** (recipe sharing)
+- [ ] **Advanced analytics** dashboard
 
 ### **Long Term (2025+)**
-- Healthcare provider integration
-- Multi-language support
-- Offline-first architecture
-- Voice assistant integration
+- [ ] **Healthcare provider** integration
+- [ ] **Multi-language** support
+- [ ] **Offline-first** architecture
+- [ ] **Voice assistant** integration
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
@@ -313,22 +658,22 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## Support & Contact
+## 📞 Support & Contact
 
 - **App Store**: [Download Diabetes&Me](https://apps.apple.com/app/diabetes-me)
-- **Privacy Policy**: [Privacy Policy](https://abhinavsrinivasan.github.io/diabetes-me-privacy/)
-- **Support**: [Support Center](https://abhinavsrinivasan.github.io/diabetes-me-support/)
+- **Email**: support@diabetesandme.app
 - **Issues**: [GitHub Issues](https://github.com/yourusername/diabetes-and-me/issues)
+- **Documentation**: [Full Documentation](https://docs.diabetesandme.app)
 
 ---
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - **Spoonacular** for recipe data and nutrition information
 - **OpenFoodFacts** for comprehensive product database
@@ -339,7 +684,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## Medical Disclaimer
+## ⚠️ Medical Disclaimer
 
 This app is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
 
@@ -347,8 +692,8 @@ This app is for informational purposes only and is not a substitute for professi
 
 <div align="center">
 
-**Built with care for the diabetes community**
+**Built with ❤️ for the diabetes community**
 
-[Privacy Policy](https://abhinavsrinivasan.github.io/diabetes-me-privacy/) • [Support Center](https://abhinavsrinivasan.github.io/diabetes-me-support/)
+[Download on App Store](https://apps.apple.com/app/diabetes-me) • [View Documentation](https://docs.diabetesandme.app) • [Report Issues](https://github.com/yourusername/diabetes-and-me/issues)
 
 </div>
