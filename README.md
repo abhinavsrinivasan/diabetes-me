@@ -128,78 +128,6 @@ graph TB
     class UserData,RecipeData,ProgressData,CacheData dataStyle
 ```
 
-### Data Flow & User Journey Architecture
-
-```mermaid
-graph TD
-    subgraph "User Interface Layer"
-        Login[Login/Signup Screen]
-        Home[Home Dashboard]
-        Recipes[Recipe Browser]
-        Scanner[Barcode Scanner]
-        Profile[Profile Management]
-        Grocery[Grocery Lists]
-        Health[Health Tracking]
-    end
-    
-    subgraph "Business Logic Layer"
-        AuthLogic[Authentication Logic<br/>• JWT Token Management<br/>• Email Verification<br/>• Password Reset]
-        RecipeLogic[Recipe Logic<br/>• Search & Filtering<br/>• Favorites Management<br/>• Nutrition Calculation]
-        ScanLogic[Scan Logic<br/>• Barcode Recognition<br/>• Product Analysis<br/>• Diabetes Rating]
-        AILogic[AI Logic<br/>• Ingredient Analysis<br/>• Smart Substitutions<br/>• Health Insights]
-        HealthLogic[Health Logic<br/>• Progress Tracking<br/>• Goal Management<br/>• Analytics]
-    end
-    
-    subgraph "API & Integration Layer"
-        SupabaseAPI[Supabase APIs<br/>• User Management<br/>• Data CRUD<br/>• Real-time Sync]
-        OpenAIAPI[OpenAI API<br/>• GPT-3.5 Turbo<br/>• Intelligent Prompting<br/>• Response Caching]
-        ProductAPI[Product APIs<br/>• OpenFoodFacts<br/>• Barcode Lookup<br/>• Nutrition Data]
-        RecipeAPI[Recipe APIs<br/>• Spoonacular<br/>• Recipe Search<br/>• Nutrition Facts]
-    end
-    
-    subgraph "Data Persistence Layer"
-        UserDB[(User Database<br/>• Profiles<br/>• Goals<br/>• Preferences)]
-        RecipeDB[(Recipe Database<br/>• Curated Recipes<br/>• User Favorites<br/>• Categories)]
-        HealthDB[(Health Database<br/>• Blood Sugar Logs<br/>• Progress History<br/>• Analytics)]
-        CacheDB[(Cache Database<br/>• AI Responses<br/>• API Results<br/>• Images)]
-    end
-    
-    Login --> AuthLogic
-    Home --> RecipeLogic
-    Home --> HealthLogic
-    Recipes --> RecipeLogic
-    Scanner --> ScanLogic
-    Scanner --> AILogic
-    Profile --> AuthLogic
-    Profile --> HealthLogic
-    Grocery --> RecipeLogic
-    Health --> HealthLogic
-    
-    AuthLogic --> SupabaseAPI
-    RecipeLogic --> SupabaseAPI
-    RecipeLogic --> RecipeAPI
-    ScanLogic --> ProductAPI
-    AILogic --> OpenAIAPI
-    HealthLogic --> SupabaseAPI
-    
-    SupabaseAPI --> UserDB
-    SupabaseAPI --> RecipeDB
-    SupabaseAPI --> HealthDB
-    OpenAIAPI --> CacheDB
-    ProductAPI --> CacheDB
-    RecipeAPI --> CacheDB
-    
-    classDef uiStyle fill:#1a1a1a,stroke:#333333,stroke-width:3px,color:#ffffff
-    classDef logicStyle fill:#2d2d2d,stroke:#444444,stroke-width:3px,color:#ffffff
-    classDef apiStyle fill:#1a2e1a,stroke:#2d4a2d,stroke-width:3px,color:#ffffff
-    classDef dbStyle fill:#1a1a2e,stroke:#2d2d4a,stroke-width:3px,color:#ffffff
-    
-    class Login,Home,Recipes,Scanner,Profile,Grocery,Health uiStyle
-    class AuthLogic,RecipeLogic,ScanLogic,AILogic,HealthLogic logicStyle
-    class SupabaseAPI,OpenAIAPI,ProductAPI,RecipeAPI apiStyle
-    class UserDB,RecipeDB,HealthDB,CacheDB dbStyle
-```
-
 ### Authentication & Security Flow
 
 ```mermaid
@@ -241,74 +169,6 @@ sequenceDiagram
     App->>Auth: Update password
     Auth-->>App: Password updated
     App-->>U: Login with new password
-```
-
-### AI Integration Architecture
-
-```mermaid
-graph TB
-    subgraph "User Interaction"
-        RecipeView[Recipe Detail View]
-        IngredientTap[Tap Ingredient]
-        InsightModal[Insight Modal]
-    end
-    
-    subgraph "Caching Layer"
-        LocalCache[Local Cache<br/>• Recent insights<br/>• User preferences<br/>• Response optimization]
-        SupabaseCache[Cloud Cache<br/>• Shared insights<br/>• Popular queries<br/>• Performance data]
-    end
-    
-    subgraph "AI Processing Engine"
-        PromptEngine[Prompt Engineering<br/>• Diabetes-specific context<br/>• Ingredient analysis<br/>• Safety guidelines]
-        OpenAIAPI[OpenAI GPT-3.5<br/>• Natural language processing<br/>• Contextual understanding<br/>• Response generation]
-        ResponseParser[Response Parser<br/>• JSON validation<br/>• Error handling<br/>• Fallback logic]
-    end
-    
-    subgraph "Intelligence Features"
-        IngredientAnalysis[Ingredient Analysis<br/>• Nutritional impact<br/>• Blood sugar effects<br/>• Recipe role]
-        SmartSubstitutions[Smart Substitutions<br/>• Diabetes-friendly alternatives<br/>• Nutritional comparisons<br/>• Availability checks]
-        HealthInsights[Health Insights<br/>• Personalized advice<br/>• Portion recommendations<br/>• Timing suggestions]
-    end
-    
-    subgraph "Knowledge Base"
-        DiabetesDB[(Diabetes Knowledge<br/>• Glycemic index data<br/>• Carb counting rules<br/>• Medical guidelines)]
-        IngredientDB[(Ingredient Database<br/>• Nutritional profiles<br/>• Substitution mapping<br/>• User preferences)]
-        FeedbackDB[(Feedback Database<br/>• User ratings<br/>• Usage analytics<br/>• Improvement data)]
-    end
-    
-    RecipeView --> IngredientTap
-    IngredientTap --> LocalCache
-    LocalCache -->|Cache Miss| PromptEngine
-    LocalCache -->|Cache Hit| InsightModal
-    
-    PromptEngine --> OpenAIAPI
-    OpenAIAPI --> ResponseParser
-    ResponseParser --> IngredientAnalysis
-    ResponseParser --> SmartSubstitutions
-    ResponseParser --> HealthInsights
-    
-    IngredientAnalysis --> InsightModal
-    SmartSubstitutions --> InsightModal
-    HealthInsights --> InsightModal
-    
-    ResponseParser --> LocalCache
-    ResponseParser --> SupabaseCache
-    
-    PromptEngine --> DiabetesDB
-    PromptEngine --> IngredientDB
-    InsightModal --> FeedbackDB
-    
-    classDef userStyle fill:#1a1a1a,stroke:#333333,stroke-width:3px,color:#ffffff
-    classDef cacheStyle fill:#2e1a1a,stroke:#4a2d2d,stroke-width:3px,color:#ffffff
-    classDef aiStyle fill:#2d2d2d,stroke:#444444,stroke-width:3px,color:#ffffff
-    classDef intelligenceStyle fill:#1a2e1a,stroke:#2d4a2d,stroke-width:3px,color:#ffffff
-    classDef dbStyle fill:#1a1a2e,stroke:#2d2d4a,stroke-width:3px,color:#ffffff
-    
-    class RecipeView,IngredientTap,InsightModal userStyle
-    class LocalCache,SupabaseCache cacheStyle
-    class PromptEngine,OpenAIAPI,ResponseParser aiStyle
-    class IngredientAnalysis,SmartSubstitutions,HealthInsights intelligenceStyle
-    class DiabetesDB,IngredientDB,FeedbackDB dbStyle
 ```
 
 ### Database Schema & Relationships
@@ -560,6 +420,7 @@ erDiagram
 ### **Backend & Database**
 - **Supabase** - Backend-as-a-Service platform
 - **PostgreSQL** - Primary database
+- **Python** - Database interactions
 - **Supabase Auth** - JWT-based authentication with email confirmation
 - **Supabase Storage** - File storage with CDN
 - **Real-time subscriptions** - Live data updates
