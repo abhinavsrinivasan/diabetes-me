@@ -28,12 +28,6 @@
 
 ## Architecture Overview
 
-### Visual System Architecture
-
-![Diabetes&Me Architecture](https://your-domain.com/architecture-diagram.png)
-
-> **4-Layer Architecture**: Clean separation between UI, Business Logic, API Integration, and Data Persistence layers for optimal scalability and maintainability.
-
 ### Component Architecture Breakdown
 
 ```mermaid
