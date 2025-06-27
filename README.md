@@ -71,7 +71,7 @@ graph TB
 
 The application follows a clean data flow pattern:
 
-mermaidsequenceDiagram
+```mermaidsequenceDiagram
     participant U as User
     participant F as Flutter App
     participant S as Supabase
@@ -97,7 +97,7 @@ mermaidsequenceDiagram
     F->>S: Fetch Curated Recipes
     S-->>F: Recipe Data
     F-->>U: Personalized Results
-
+```
 ---
 
 ## Technology Stack
