@@ -71,10 +71,32 @@ graph TB
 
 The application follows a clean data flow pattern:
 
-1. **Authentication Flow**: User authenticates through Supabase, receives JWT token for session management
-2. **Barcode Scanning**: App queries OpenFoodFacts API, processes nutrition data, sends to OpenAI for diabetes-specific insights
-3. **Nutrition Tracking**: Real-time updates to Supabase database with immediate UI feedback
-4. **Recipe Discovery**: Curated recipes fetched from Supabase with intelligent filtering and caching
+mermaidsequenceDiagram
+    participant U as User
+    participant F as Flutter App
+    participant S as Supabase
+    participant AI as OpenAI
+    participant API as External APIs
+    
+    U->>F: Open App
+    F->>S: Authenticate
+    S-->>F: User Session
+    
+    U->>F: Scan Barcode
+    F->>API: Product Lookup
+    API-->>F: Nutrition Data
+    F->>AI: Generate Insights
+    AI-->>F: Health Recommendations
+    F-->>U: Diabetes Rating & Alternatives
+    
+    U->>F: Track Nutrition
+    F->>S: Update Progress
+    S-->>F: Sync Confirmation
+    
+    U->>F: Browse Recipes
+    F->>S: Fetch Curated Recipes
+    S-->>F: Recipe Data
+    F-->>U: Personalized Results
 
 ---
 
