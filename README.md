@@ -26,144 +26,55 @@
 
 ---
 
-## Architecture Overview
+## 🏗️ Architecture Overview
 
 ### System Architecture
 
 ```mermaid
 graph TB
-    subgraph "Frontend Layer"
-        A[Flutter Mobile App] --> B[Authentication Service]
+    subgraph "Frontend (Flutter)"
+        A[Flutter App] --> B[Authentication Layer]
         A --> C[Recipe Management]
         A --> D[Nutrition Tracking]
         A --> E[Barcode Scanner]
         A --> F[AI Insights]
-        A --> G[Profile Management]
     end
     
     subgraph "Backend Services"
-        H[Supabase] --> I[(PostgreSQL Database)]
-        H --> J[Authentication & Auth]
-        H --> K[File Storage]
-        H --> L[Real-time Subscriptions]
+        G[Supabase] --> H[(PostgreSQL)]
+        G --> I[Authentication]
+        G --> J[Storage]
+        G --> K[Real-time]
     end
     
     subgraph "External APIs"
-        M[OpenAI GPT-3.5 Turbo]
-        N[OpenFoodFacts API]
-        O[Spoonacular API]
+        L[OpenAI GPT-3.5]
+        M[OpenFoodFacts]
+        N[Spoonacular API]
     end
     
-    subgraph "Data Storage"
-        P[User Profiles]
-        Q[Recipe Database]
-        R[Progress Tracking]
-        S[Blood Sugar Logs]
-        T[Grocery Lists]
+    A --> G
+    F --> L
+    E --> M
+    C --> N
+    
+    subgraph "Cloud Infrastructure"
+        O[Supabase Storage]
+        P[CDN]
     end
     
-    A --> H
-    F --> M
-    E --> N
-    C --> O
-    
-    I --> P
-    I --> Q
-    I --> R
-    I --> S
-    I --> T
-    
-    K --> U[CDN Image Delivery]
-    
-    style A fill:#e1f5fe
-    style H fill:#f3e5f5
-    style M fill:#fff3e0
-    style N fill:#e8f5e8
-    style O fill:#fff8e1
+    J --> O
+    O --> P
 ```
 
 ### Data Flow Architecture
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Flutter App
-    participant S as Supabase
-    participant AI as OpenAI
-    participant API as External APIs
-    
-    Note over U,API: Authentication Flow
-    U->>F: Launch App
-    F->>S: Check Auth Status
-    S-->>F: JWT Token/Session
-    F-->>U: Home Screen
-    
-    Note over U,API: Barcode Scanning Flow
-    U->>F: Scan Product Barcode
-    F->>API: Query Product Info
-    API-->>F: Nutrition Data
-    F->>AI: Generate Diabetes Insights
-    AI-->>F: Health Recommendations
-    F->>S: Cache Insights
-    F-->>U: Rating & Alternatives
-    
-    Note over U,API: Nutrition Tracking Flow
-    U->>F: Log Food/Exercise
-    F->>S: Update Daily Progress
-    S-->>F: Real-time Sync
-    F-->>U: Updated Progress UI
-    
-    Note over U,API: Recipe Discovery Flow
-    U->>F: Search/Browse Recipes
-    F->>S: Query Curated Database
-    S-->>F: Filtered Results
-    F-->>U: Recipe Cards
-    
-    Note over U,API: AI Ingredient Insights
-    U->>F: Tap Ingredient
-    F->>AI: Request Substitutions
-    AI-->>F: Personalized Advice
-    F->>S: Cache Response
-    F-->>U: Insight Modal
-```
+The application follows a clean data flow pattern:
 
-### Component Architecture
-
-```mermaid
-graph LR
-    subgraph "Presentation Layer"
-        A[Screens] --> B[Widgets]
-        B --> C[Theme System]
-    end
-    
-    subgraph "Business Logic Layer"
-        D[Services] --> E[State Management]
-        E --> F[Data Models]
-    end
-    
-    subgraph "Data Layer"
-        G[Repository Pattern] --> H[API Clients]
-        G --> I[Local Storage]
-        G --> J[Cache Management]
-    end
-    
-    A --> D
-    D --> G
-    
-    subgraph "External Dependencies"
-        K[Supabase Client]
-        L[HTTP Client]
-        M[Secure Storage]
-        N[Image Picker]
-        O[Barcode Scanner]
-    end
-    
-    H --> K
-    H --> L
-    I --> M
-    B --> N
-    B --> O
-```
+1. **Authentication Flow**: User authenticates through Supabase, receives JWT token for session management
+2. **Barcode Scanning**: App queries OpenFoodFacts API, processes nutrition data, sends to OpenAI for diabetes-specific insights
+3. **Nutrition Tracking**: Real-time updates to Supabase database with immediate UI feedback
+4. **Recipe Discovery**: Curated recipes fetched from Supabase with intelligent filtering and caching
 
 ---
 
@@ -175,6 +86,11 @@ graph LR
 - **Provider** - State management (MVVM architecture)
 - **Material Design 3** - Modern UI components
 - **Google Fonts** - Typography system
+
+### **Backend Scripts & Data Processing**
+- **Python 3.11+** - Data curation and migration scripts
+- **Supabase Python Client** - Database operations
+- **CSV Processing** - Recipe data import and cleaning
 
 ### **Backend & Database**
 - **Supabase** - Backend-as-a-Service platform
@@ -278,6 +194,7 @@ graph LR
 - **Modular Architecture** - Clean separation of concerns and easy testing
 
 ---
+
 ## Project Structure
 
 ```
@@ -410,6 +327,6 @@ This app is for informational purposes only and is not a substitute for professi
 
 **Built with care for the diabetes community**
 
-[Download on App Store](https://apps.apple.com/app/diabetes-me) • [Privacy Policy](https://abhinavsrinivasan.github.io/diabetes-me-privacy/) • [Support Center](https://abhinavsrinivasan.github.io/diabetes-me-support/)
+[Privacy Policy](https://abhinavsrinivasan.github.io/diabetes-me-privacy/) • [Support Center](https://abhinavsrinivasan.github.io/diabetes-me-support/)
 
 </div>
