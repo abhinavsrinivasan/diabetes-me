@@ -86,7 +86,13 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         onAddToGroceryList: _addToGroceryList,
         onRescan: _resetScanner,
       ),
-    );
+    ).then((_) {
+      // Reset scanner when modal is dismissed by any means (swipe down, back button, etc.)
+      // This ensures the camera preview is re-enabled even if onRescan wasn't called
+      if (mounted && !isScanning) {
+        _resetScanner();
+      }
+    });
   }
 
   void _showProductNotFound() {
