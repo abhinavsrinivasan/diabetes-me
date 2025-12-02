@@ -1864,11 +1864,13 @@ Widget build(BuildContext context) {
               ),
               const SizedBox(height: 12),
               // Bio Section
-              Container(
-                constraints: const BoxConstraints(maxWidth: 300),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 300),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                     Flexible(
                       child: isEditingBio
                           ? TextField(
@@ -1917,6 +1919,7 @@ Widget build(BuildContext context) {
                   ],
                 ),
               ),
+            ),
               const SizedBox(height: 8), // Reduced from 12 to save space
             ],
           ),
@@ -1930,6 +1933,7 @@ Widget build(BuildContext context) {
                       labelColor: Colors.deepPurple,
                       unselectedLabelColor: Colors.grey,
                       indicatorColor: Colors.deepPurple,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       tabs: const [
                         Tab(text: "Daily Goals", icon: Icon(Icons.track_changes)),
                         Tab(text: "Favorites", icon: Icon(Icons.favorite)),
