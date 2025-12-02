@@ -324,7 +324,7 @@ Future<void> deleteProfilePicture() async {
 // Updated widget build method for profile picture section
 Widget buildProfilePictureSection() {
   return GestureDetector(
-    onTap: pickImage,
+    onTap: pickAndUploadImage,
     onLongPress: () {
       // Show options to change or delete
       showModalBottomSheet(
@@ -338,7 +338,7 @@ Widget buildProfilePictureSection() {
                 title: const Text('Change Profile Picture'),
                 onTap: () {
                   Navigator.pop(context);
-                  pickImage();
+                  pickAndUploadImage();
                 },
               ),
               if (imageUrl != null && imageUrl!.isNotEmpty)
