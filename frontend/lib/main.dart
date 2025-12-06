@@ -79,7 +79,7 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
     }
     
     // Handle deep link when app is already running
-    _linkSubscription = _appLinks.allUriLinkStream.listen(
+    _linkSubscription = _appLinks.uriLinkStream.listen(
       (Uri uri) {
         print('📱 Received deep link while app running: $uri');
         _handleDeepLink(uri);
