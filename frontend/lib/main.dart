@@ -66,7 +66,7 @@ class _DiabetesMeAppState extends State<DiabetesMeApp> {
     
     // Handle app launch from deep link (when app is closed)
     try {
-      final initialLink = await _appLinks.getInitialAppLink();
+      final initialLink = await _appLinks.getInitialLink();
       if (initialLink != null) {
         print('📱 App launched with deep link: $initialLink');
         // Wait a bit for the app to fully initialize
