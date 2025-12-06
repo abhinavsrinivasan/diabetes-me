@@ -1820,16 +1820,16 @@ Widget build(BuildContext context) {
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
-                            builder: (context) => AlertDialog(
+                            builder: (dialogContext) => AlertDialog(
                               title: const Text('Logout'),
                               content: const Text('Are you sure you want to logout?'),
                               actions: [
                                 TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
+                                  onPressed: () => Navigator.pop(dialogContext, false),
                                   child: const Text('Cancel'),
                                 ),
                                 TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
+                                  onPressed: () => Navigator.pop(dialogContext, true),
                                   style: TextButton.styleFrom(foregroundColor: Colors.red),
                                   child: const Text('Logout'),
                                 ),
