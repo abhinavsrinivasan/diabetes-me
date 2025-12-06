@@ -18,8 +18,8 @@ void main() async {
   
   // Initialize Supabase with deep linking disabled since we handle it manually
   await Supabase.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL'),
-    anonKey: const String.fromEnvironment('SUPABASE_SERVICE_ROLE_KEY'),
+    url: EnvConfig.supabaseUrl,
+    anonKey: EnvConfig.supabaseServiceRoleKey,
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce, // Use PKCE flow for better security
     ),
