@@ -63,17 +63,38 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   }
 
   Future<void> _clearCompleted() async {
-    await GroceryListService.clearCompletedItems();
-    await _loadGroceryList();
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cleared completed items'),
-        backgroundColor: Colors.orange,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Completed Items'),
+        content: const Text('Are you sure you want to clear all completed items?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            child: const Text('Clear'),
+          ),
+        ],
       ),
     );
+
+    if (confirm == true) {
+      await GroceryListService.clearCompletedItems();
+      await _loadGroceryList();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cleared completed items'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override

@@ -1818,9 +1818,30 @@ Widget build(BuildContext context) {
                         icon: const Icon(Icons.logout, color: Colors.black87),
                         tooltip: 'Logout',
                         onPressed: () async {
-                          await AuthService().logout();
-                          if (!mounted) return;
-                          Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Logout'),
+                              content: const Text('Are you sure you want to logout?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                  child: const Text('Logout'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            await AuthService().logout();
+                            if (!mounted) return;
+                            Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+                          }
                         },
                       ),
                     ],
