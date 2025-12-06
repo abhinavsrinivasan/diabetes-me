@@ -15,7 +15,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
 
   bool _isLogin = true;
   bool _loading = false;
@@ -61,7 +60,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -421,15 +419,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               icon: Icons.email_outlined,
                               keyboardType: TextInputType.emailAddress,
                             ),
-
-                            if (!_isLogin) ...[
-                              _buildTextField(
-                                controller: _phoneController,
-                                label: 'Phone number',
-                                icon: Icons.phone_outlined,
-                                keyboardType: TextInputType.phone,
-                              ),
-                            ],
 
                             _buildTextField(
                               controller: _passwordController,
